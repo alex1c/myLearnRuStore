@@ -1,0 +1,101 @@
+import type { DatabaseConnection } from '@/src/db/types'
+import type { Subject } from '@/src/types/domain'
+import { createId, nowTimestamp } from '@/src/utils/id'
+import { validateSubjectName } from '@/src/utils/validation'
+
+interface SubjectRow {
+	id: string
+	study_period_id: string
+	name: string
+	short_name: string | null
+	color: string | null
+	room_default: string | null
+	teacher_id: string | null
+	target_grade: number | null
+	sort_order: number
+	is_archived: number
+	created_at: string
+	updated_at: string
+}
+
+function mapRow(row: SubjectRow): Subject {
+	return {
+		id: row.id,
+		studyPeriodId: row.study_period_id,
+		name: row.name,
+		shortName: row.short_name,
+		color: row.color,
+		roomDefault: row.room_default,
+		teacherId: row.teacher_id,
+		targetGrade: row.target_grade,
+		sortOrder: row.sort_order,
+		isArchived: row.is_archived === 1,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at,
+	}
+}
+
+export interface CreateSubjectInput {
+	studyPeriodId: string
+	name: string
+	shortName?: string | null
+	color?: string | null
+	teacherId?: string | null
+	sortOrder?: number
+}
+
+export class SubjectRepository {
+	constructor(private readonly db: DatabaseConnection) {}
+
+	async listByStudyPeriod(studyPeriodId: string): Promise<Subject[]> {
+		const rows = await this.db.getAllAsync<SubjectRow>(
+			`SELECT * FROM subjects
+			 WHERE study_period_id = ? AND is_archived = 0
+			 ORDER BY sort_order ASC, name ASC`,
+			[studyPeriodId],
+		)
+		return rows.map(mapRow)
+	}
+
+	async create(input: CreateSubjectInput): Promise<Subject> {
+		const name = validateSubjectName(input.name)
+		const timestamp = nowTimestamp()
+		const subject: Subject = {
+			id: createId(),
+			studyPeriodId: input.studyPeriodId,
+			name,
+			shortName: input.shortName ?? null,
+			color: input.color ?? null,
+			roomDefault: null,
+			teacherId: input.teacherId ?? null,
+			targetGrade: null,
+			sortOrder: input.sortOrder ?? 0,
+			isArchived: false,
+			createdAt: timestamp,
+			updatedAt: timestamp,
+		}
+
+		await this.db.runAsync(
+			`INSERT INTO subjects (
+				id, study_period_id, name, short_name, color, room_default,
+				teacher_id, target_grade, sort_order, is_archived, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				subject.id,
+				subject.studyPeriodId,
+				subject.name,
+				subject.shortName,
+				subject.color,
+				subject.roomDefault,
+				subject.teacherId,
+				subject.targetGrade,
+				subject.sortOrder,
+				0,
+				subject.createdAt,
+				subject.updatedAt,
+			],
+		)
+
+		return subject
+	}
+}
