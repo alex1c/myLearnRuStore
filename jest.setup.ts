@@ -20,6 +20,9 @@ jest.mock('expo-file-system/legacy', () => ({
 	makeDirectoryAsync: jest.fn(async () => undefined),
 	copyAsync: jest.fn(async () => undefined),
 	deleteAsync: jest.fn(async () => undefined),
+	readAsStringAsync: jest.fn(async () => ''),
+	writeAsStringAsync: jest.fn(async () => undefined),
+	EncodingType: { Base64: 'base64' },
 }))
 
 jest.mock('expo-image-picker', () => ({

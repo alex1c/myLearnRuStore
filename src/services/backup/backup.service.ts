@@ -17,6 +17,7 @@ import {
 } from '@/src/services/backup/backup.types'
 import { reconcileAssignmentReminders } from '@/src/services/assignment-reminder-sync.service'
 import * as Notifications from 'expo-notifications'
+import { createId } from '@/src/utils/id'
 
 const MANIFEST_PATH = 'manifest.json'
 const DATA_PATH = 'data.json'
@@ -203,6 +204,15 @@ export function parseBackupArchive(bytes: Uint8Array): ParsedBackupArchive {
 		throw new Error('Unsupported backup version')
 	}
 
+	const collections: (keyof BackupDataPayload)[] = [
+		'appSettings', 'studyPeriods', 'teachers', 'subjects', 'scheduleEntries',
+		'scheduleExceptions', 'assignments', 'assignmentPhotos', 'assignmentReminders',
+		'grades', 'attendance', 'focusSessions', 'holidays', 'scheduleImportHistory',
+	]
+	if (!data || typeof data !== 'object' || collections.some((key) => !Array.isArray(data[key]))) {
+		throw new Error('Malformed backup data')
+	}
+
 	const totalRecords =
 		data.studyPeriods.length +
 		data.subjects.length +
@@ -240,6 +250,25 @@ export function parseBackupArchive(bytes: Uint8Array): ParsedBackupArchive {
 }
 
 function validateReferences(data: BackupDataPayload): void {
+	const collections: [string, { id?: unknown }[]][] = [
+		['app settings', data.appSettings], ['study periods', data.studyPeriods],
+		['teachers', data.teachers], ['subjects', data.subjects],
+		['schedule entries', data.scheduleEntries], ['schedule exceptions', data.scheduleExceptions],
+		['assignments', data.assignments], ['photos', data.assignmentPhotos],
+		['reminders', data.assignmentReminders], ['grades', data.grades],
+		['attendance', data.attendance], ['focus sessions', data.focusSessions],
+		['holidays', data.holidays], ['schedule import history', data.scheduleImportHistory],
+	]
+	for (const [name, rows] of collections) {
+		const ids = rows.map((row) => String(row.id ?? ''))
+		if (ids.some((id) => !id) || new Set(ids).size !== ids.length) {
+			throw new Error(`Backup contains invalid or duplicate ${name} IDs`)
+		}
+	}
+	const archiveNames = data.assignmentPhotos.map((photo) => photo.archiveName)
+	if (new Set(archiveNames).size !== archiveNames.length) {
+		throw new Error('Backup contains duplicate photo archive references')
+	}
 	const periodIds = new Set(data.studyPeriods.map((row) => String(row.id)))
 	const subjectIds = new Set(data.subjects.map((row) => String(row.id)))
 	const assignmentIds = new Set(data.assignments.map((row) => String(row.id)))
@@ -293,6 +322,7 @@ export async function restoreBackupArchive(
 	parsed: ParsedBackupArchive,
 ): Promise<void> {
 	const db = getDbConnection(repos)
+	const staged = await stageRestoredPhotos(parsed)
 
 	try {
 		const scheduled = await Notifications.getAllScheduledNotificationsAsync()
@@ -305,10 +335,15 @@ export async function restoreBackupArchive(
 		// Non-critical — reconciliation rebuilds from persisted intent.
 	}
 
-	await repos.runInTransaction(async () => {
-		await clearAllData(db)
-		await insertBackupData(db, parsed)
-	})
+	try {
+		await repos.runInTransaction(async () => {
+			await clearAllData(db)
+			await insertBackupData(db, parsed, staged.uris)
+		})
+	} catch (error) {
+		await FileSystem.deleteAsync(staged.root, { idempotent: true }).catch(() => undefined)
+		throw error
+	}
 
 	await reconcileAssignmentReminders(repos)
 }
@@ -349,8 +384,9 @@ async function insertRow(
 async function insertBackupData(
 	db: DatabaseConnection,
 	parsed: ParsedBackupArchive,
+	photoUris: Map<string, string>,
 ): Promise<void> {
-	const { data, photos } = parsed
+	const { data } = parsed
 
 	for (const row of data.appSettings) {
 		await insertRow(db, 'app_settings', row)
@@ -385,12 +421,8 @@ async function insertBackupData(
 	}
 
 	for (const photo of data.assignmentPhotos) {
-		const photoBytes = photos.get(photo.id)
-		if (!photoBytes) {
-			throw new Error(`Photo bytes missing during restore: ${photo.id}`)
-		}
-
-		const localUri = await writeRestoredPhoto(photo.assignmentId, photo.id, photoBytes)
+		const localUri = photoUris.get(photo.id)
+		if (!localUri) throw new Error(`Staged photo missing during restore: ${photo.id}`)
 		await insertRow(db, 'assignment_photos', {
 			id: photo.id,
 			assignment_id: photo.assignmentId,
@@ -424,23 +456,29 @@ async function insertBackupData(
 	}
 }
 
-async function writeRestoredPhoto(
-	assignmentId: string,
-	photoId: string,
-	bytes: Uint8Array,
-): Promise<string> {
-	const root = `${FileSystem.documentDirectory ?? ''}assignment-photos/${assignmentId}`
-	const dirInfo = await FileSystem.getInfoAsync(root)
-	if (!dirInfo.exists) {
-		await FileSystem.makeDirectoryAsync(root, { intermediates: true })
+async function stageRestoredPhotos(parsed: ParsedBackupArchive): Promise<{
+	root: string
+	uris: Map<string, string>
+}> {
+	const root = `${FileSystem.documentDirectory ?? ''}assignment-photos/restores/${createId()}`
+	const uris = new Map<string, string>()
+	try {
+		for (const photo of parsed.data.assignmentPhotos) {
+			const bytes = parsed.photos.get(photo.id)
+			if (!bytes) throw new Error(`Photo bytes missing during restore: ${photo.id}`)
+			const dir = `${root}/${photo.assignmentId}`
+			await FileSystem.makeDirectoryAsync(dir, { intermediates: true })
+			const uri = `${dir}/${photo.id}.jpg`
+			await FileSystem.writeAsStringAsync(uri, uint8ToBase64(bytes), {
+				encoding: FileSystem.EncodingType.Base64,
+			})
+			uris.set(photo.id, uri)
+		}
+		return { root, uris }
+	} catch (error) {
+		await FileSystem.deleteAsync(root, { idempotent: true }).catch(() => undefined)
+		throw error
 	}
-
-	const destUri = `${root}/${photoId}.jpg`
-	await FileSystem.writeAsStringAsync(destUri, uint8ToBase64(bytes), {
-		encoding: FileSystem.EncodingType.Base64,
-	})
-
-	return destUri
 }
 
 /** Write backup ZIP to cache and return file URI for sharing. */
