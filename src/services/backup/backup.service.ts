@@ -86,7 +86,6 @@ export async function createBackupArchive(repos: Repositories): Promise<Uint8Arr
 			id: string
 			assignment_id: string
 			local_uri: string
-			sort_order: number
 			created_at: string
 		}>(rawDb, 'assignment_photos'),
 		queryAll(rawDb, 'assignment_reminders'),
@@ -100,13 +99,15 @@ export async function createBackupArchive(repos: Repositories): Promise<Uint8Arr
 	const portablePhotos: BackupPhotoEntry[] = []
 	const zipEntries: Record<string, Uint8Array> = {}
 
-	for (const photo of assignmentPhotos) {
+	// Schema has no sort_order column — portable order follows created_at query order.
+	for (let index = 0; index < assignmentPhotos.length; index += 1) {
+		const photo = assignmentPhotos[index]
 		const archiveName = `${PHOTOS_PREFIX}${photo.id}.jpg`
 		portablePhotos.push({
 			id: photo.id,
 			assignmentId: photo.assignment_id,
 			archiveName,
-			sortOrder: photo.sort_order,
+			sortOrder: index,
 			createdAt: photo.created_at,
 		})
 
@@ -388,10 +389,7 @@ async function insertBackupData(
 ): Promise<void> {
 	const { data } = parsed
 
-	for (const row of data.appSettings) {
-		await insertRow(db, 'app_settings', row)
-	}
-
+	// Dependency-safe order — never insert parents after children.
 	for (const row of data.studyPeriods) {
 		await insertRow(db, 'study_periods', row)
 	}
@@ -402,6 +400,11 @@ async function insertBackupData(
 
 	for (const row of data.subjects) {
 		await insertRow(db, 'subjects', row)
+	}
+
+	// app_settings may reference active_study_period_id.
+	for (const row of data.appSettings) {
+		await insertRow(db, 'app_settings', row)
 	}
 
 	for (const row of data.scheduleEntries) {
@@ -423,11 +426,11 @@ async function insertBackupData(
 	for (const photo of data.assignmentPhotos) {
 		const localUri = photoUris.get(photo.id)
 		if (!localUri) throw new Error(`Staged photo missing during restore: ${photo.id}`)
+		// Do not insert portable sortOrder — assignment_photos has no sort_order column.
 		await insertRow(db, 'assignment_photos', {
 			id: photo.id,
 			assignment_id: photo.assignmentId,
 			local_uri: localUri,
-			sort_order: photo.sortOrder,
 			created_at: photo.createdAt,
 		})
 	}
