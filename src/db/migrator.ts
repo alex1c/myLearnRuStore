@@ -34,6 +34,14 @@ export async function runMigrations(db: DatabaseConnection): Promise<void> {
 	await ensureMigrationTable(db)
 
 	const appliedVersions = await getAppliedMigrationVersions(db)
+	const latestSupportedVersion = Math.max(0, ...migrations.map(({ version }) => version))
+	const futureVersion = appliedVersions.find((version) => version > latestSupportedVersion)
+	if (futureVersion !== undefined) {
+		throw new Error(
+			`Database schema version ${futureVersion} is newer than supported version ${latestSupportedVersion}`,
+		)
+	}
+
 	const appliedSet = new Set(appliedVersions)
 
 	const pending = migrations

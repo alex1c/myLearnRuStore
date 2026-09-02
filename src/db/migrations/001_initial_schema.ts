@@ -20,7 +20,7 @@ export const migration001InitialSchema = {
 				name TEXT NOT NULL,
 				type TEXT NOT NULL CHECK (type IN ('YEAR', 'SEMESTER', 'QUARTER')),
 				start_date TEXT NOT NULL,
-				end_date TEXT NOT NULL,
+				end_date TEXT NOT NULL CHECK (start_date <= end_date),
 				is_active INTEGER NOT NULL DEFAULT 0 CHECK (is_active IN (0, 1)),
 				created_at TEXT NOT NULL,
 				updated_at TEXT NOT NULL
@@ -46,7 +46,11 @@ export const migration001InitialSchema = {
 				first_day_of_week INTEGER NOT NULL DEFAULT 1
 					CHECK (first_day_of_week BETWEEN 1 AND 7),
 				created_at TEXT NOT NULL,
-				updated_at TEXT NOT NULL
+				updated_at TEXT NOT NULL,
+				CHECK (
+					(week_cycle_mode = 'EVERY_WEEK' AND cycle_length = 1)
+					OR (week_cycle_mode = 'TWO_WEEK' AND cycle_length = 2 AND cycle_anchor_date IS NOT NULL)
+				)
 			);
 
 			CREATE TABLE IF NOT EXISTS subjects (
@@ -61,23 +65,27 @@ export const migration001InitialSchema = {
 				sort_order INTEGER NOT NULL DEFAULT 0,
 				is_archived INTEGER NOT NULL DEFAULT 0 CHECK (is_archived IN (0, 1)),
 				created_at TEXT NOT NULL,
-				updated_at TEXT NOT NULL
+				updated_at TEXT NOT NULL,
+				UNIQUE (id, study_period_id)
 			);
 
 			CREATE TABLE IF NOT EXISTS schedule_entries (
 				id TEXT PRIMARY KEY NOT NULL,
 				study_period_id TEXT NOT NULL REFERENCES study_periods(id) ON DELETE CASCADE,
-				subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE RESTRICT,
+				subject_id TEXT NOT NULL,
 				teacher_id TEXT REFERENCES teachers(id) ON DELETE SET NULL,
 				room TEXT,
 				weekday INTEGER NOT NULL CHECK (weekday BETWEEN 1 AND 7),
-				start_time TEXT NOT NULL,
-				end_time TEXT NOT NULL,
+				start_time TEXT NOT NULL CHECK (start_time GLOB '[0-2][0-9]:[0-5][0-9]' AND start_time < '24:00'),
+				end_time TEXT NOT NULL CHECK (end_time GLOB '[0-2][0-9]:[0-5][0-9]' AND end_time < '24:00' AND start_time < end_time),
 				lesson_type TEXT,
 				week_cycle TEXT NOT NULL DEFAULT 'EVERY_WEEK'
 					CHECK (week_cycle IN ('EVERY_WEEK', 'CYCLE_0', 'CYCLE_1')),
 				created_at TEXT NOT NULL,
-				updated_at TEXT NOT NULL
+				updated_at TEXT NOT NULL,
+				FOREIGN KEY (subject_id, study_period_id)
+					REFERENCES subjects(id, study_period_id) ON DELETE RESTRICT,
+				UNIQUE (id, subject_id)
 			);
 
 			CREATE TABLE IF NOT EXISTS schedule_exceptions (
@@ -98,12 +106,13 @@ export const migration001InitialSchema = {
 				subject_id TEXT REFERENCES subjects(id) ON DELETE SET NULL,
 				teacher_id TEXT REFERENCES teachers(id) ON DELETE SET NULL,
 				room TEXT,
-				start_time TEXT,
-				end_time TEXT,
+				start_time TEXT CHECK (start_time IS NULL OR (start_time GLOB '[0-2][0-9]:[0-5][0-9]' AND start_time < '24:00')),
+				end_time TEXT CHECK (end_time IS NULL OR (end_time GLOB '[0-2][0-9]:[0-5][0-9]' AND end_time < '24:00')),
 				new_date TEXT,
 				notes TEXT,
 				created_at TEXT NOT NULL,
-				updated_at TEXT NOT NULL
+				updated_at TEXT NOT NULL,
+				CHECK (start_time IS NULL OR end_time IS NULL OR start_time < end_time)
 			);
 
 			CREATE TABLE IF NOT EXISTS assignments (
@@ -112,7 +121,7 @@ export const migration001InitialSchema = {
 				title TEXT NOT NULL,
 				description TEXT,
 				due_date TEXT NOT NULL,
-				due_time TEXT,
+				due_time TEXT CHECK (due_time IS NULL OR (due_time GLOB '[0-2][0-9]:[0-5][0-9]' AND due_time < '24:00')),
 				priority TEXT NOT NULL DEFAULT 'NORMAL'
 					CHECK (priority IN ('LOW', 'NORMAL', 'HIGH')),
 				status TEXT NOT NULL DEFAULT 'PENDING'
@@ -125,7 +134,8 @@ export const migration001InitialSchema = {
 				completed_at TEXT,
 				notes TEXT,
 				created_at TEXT NOT NULL,
-				updated_at TEXT NOT NULL
+				updated_at TEXT NOT NULL,
+				CHECK ((status = 'COMPLETED') = (completed_at IS NOT NULL))
 			);
 
 			CREATE TABLE IF NOT EXISTS assignment_photos (
@@ -139,7 +149,7 @@ export const migration001InitialSchema = {
 				id TEXT PRIMARY KEY NOT NULL,
 				subject_id TEXT NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
 				value REAL NOT NULL,
-				weight REAL NOT NULL DEFAULT 1.0,
+				weight REAL NOT NULL DEFAULT 1.0 CHECK (weight > 0),
 				grade_type TEXT,
 				grade_scale TEXT NOT NULL DEFAULT 'FIVE_POINT'
 					CHECK (grade_scale IN (
@@ -159,8 +169,7 @@ export const migration001InitialSchema = {
 				status TEXT NOT NULL CHECK (status IN ('PRESENT', 'ABSENT', 'EXCUSED')),
 				notes TEXT,
 				created_at TEXT NOT NULL,
-				updated_at TEXT NOT NULL,
-				UNIQUE (subject_id, schedule_entry_id, attendance_date)
+				updated_at TEXT NOT NULL
 			);
 
 			CREATE TABLE IF NOT EXISTS focus_sessions (
@@ -169,16 +178,17 @@ export const migration001InitialSchema = {
 				assignment_id TEXT REFERENCES assignments(id) ON DELETE SET NULL,
 				started_at TEXT NOT NULL,
 				ended_at TEXT,
-				duration_seconds INTEGER,
+				duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
 				completed INTEGER NOT NULL DEFAULT 0 CHECK (completed IN (0, 1)),
-				created_at TEXT NOT NULL
+				created_at TEXT NOT NULL,
+				CHECK (ended_at IS NULL OR started_at <= ended_at)
 			);
 
 			CREATE TABLE IF NOT EXISTS holidays (
 				id TEXT PRIMARY KEY NOT NULL,
 				name TEXT NOT NULL,
 				start_date TEXT NOT NULL,
-				end_date TEXT NOT NULL,
+				end_date TEXT NOT NULL CHECK (start_date <= end_date),
 				study_period_id TEXT REFERENCES study_periods(id) ON DELETE CASCADE,
 				created_at TEXT NOT NULL,
 				updated_at TEXT NOT NULL
@@ -194,6 +204,65 @@ export const migration001InitialSchema = {
 				ON grades(subject_id, date);
 			CREATE INDEX IF NOT EXISTS idx_attendance_subject_date
 				ON attendance(subject_id, attendance_date);
+			CREATE UNIQUE INDEX IF NOT EXISTS uq_attendance_schedule_occurrence
+				ON attendance(schedule_entry_id, attendance_date)
+				WHERE schedule_entry_id IS NOT NULL;
+			CREATE UNIQUE INDEX IF NOT EXISTS uq_attendance_manual_occurrence
+				ON attendance(subject_id, attendance_date)
+				WHERE schedule_entry_id IS NULL;
+			CREATE UNIQUE INDEX IF NOT EXISTS uq_schedule_exception_occurrence
+				ON schedule_exceptions(schedule_entry_id, exception_date)
+				WHERE schedule_entry_id IS NOT NULL;
+
+			CREATE TRIGGER IF NOT EXISTS trg_assignment_source_subject_insert
+			BEFORE INSERT ON assignments
+			WHEN NEW.source_schedule_entry_id IS NOT NULL AND NOT EXISTS (
+				SELECT 1 FROM schedule_entries
+				WHERE id = NEW.source_schedule_entry_id AND subject_id = NEW.subject_id
+			)
+			BEGIN SELECT RAISE(ABORT, 'assignment source subject mismatch'); END;
+
+			CREATE TRIGGER IF NOT EXISTS trg_assignment_source_subject_update
+			BEFORE UPDATE OF subject_id, source_schedule_entry_id ON assignments
+			WHEN NEW.source_schedule_entry_id IS NOT NULL AND NOT EXISTS (
+				SELECT 1 FROM schedule_entries
+				WHERE id = NEW.source_schedule_entry_id AND subject_id = NEW.subject_id
+			)
+			BEGIN SELECT RAISE(ABORT, 'assignment source subject mismatch'); END;
+
+			CREATE TRIGGER IF NOT EXISTS trg_attendance_subject_insert
+			BEFORE INSERT ON attendance
+			WHEN NEW.schedule_entry_id IS NOT NULL AND NOT EXISTS (
+				SELECT 1 FROM schedule_entries
+				WHERE id = NEW.schedule_entry_id AND subject_id = NEW.subject_id
+			)
+			BEGIN SELECT RAISE(ABORT, 'attendance subject mismatch'); END;
+
+			CREATE TRIGGER IF NOT EXISTS trg_attendance_subject_update
+			BEFORE UPDATE OF subject_id, schedule_entry_id ON attendance
+			WHEN NEW.schedule_entry_id IS NOT NULL AND NOT EXISTS (
+				SELECT 1 FROM schedule_entries
+				WHERE id = NEW.schedule_entry_id AND subject_id = NEW.subject_id
+			)
+			BEGIN SELECT RAISE(ABORT, 'attendance subject mismatch'); END;
+
+			CREATE TRIGGER IF NOT EXISTS trg_focus_assignment_subject_insert
+			BEFORE INSERT ON focus_sessions
+			WHEN NEW.assignment_id IS NOT NULL AND NOT EXISTS (
+				SELECT 1 FROM assignments
+				WHERE id = NEW.assignment_id
+					AND (NEW.subject_id IS NULL OR subject_id = NEW.subject_id)
+			)
+			BEGIN SELECT RAISE(ABORT, 'focus session assignment subject mismatch'); END;
+
+			CREATE TRIGGER IF NOT EXISTS trg_focus_assignment_subject_update
+			BEFORE UPDATE OF subject_id, assignment_id ON focus_sessions
+			WHEN NEW.assignment_id IS NOT NULL AND NOT EXISTS (
+				SELECT 1 FROM assignments
+				WHERE id = NEW.assignment_id
+					AND (NEW.subject_id IS NULL OR subject_id = NEW.subject_id)
+			)
+			BEGIN SELECT RAISE(ABORT, 'focus session assignment subject mismatch'); END;
 		`)
 	},
 }

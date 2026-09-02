@@ -33,6 +33,12 @@ describe('week cycle engine', () => {
 		expect(getCycleWeekForDate(afterNewYear, anchor, 2)).toBe(1)
 	})
 
+	it('normalizes a non-Monday anchor to its academic Monday', () => {
+		const tuesdayAnchor = '2026-12-29'
+		expect(getCycleWeekForDate('2026-12-28', tuesdayAnchor, 2)).toBe(0)
+		expect(getCycleWeekForDate('2027-01-04', tuesdayAnchor, 2)).toBe(1)
+	})
+
 	it('handles leap year week boundaries', () => {
 		const anchor = '2024-02-26'
 		expect(getCycleWeekForDateWithOffset(anchor, 7, 2)).toBe(1)

@@ -21,7 +21,17 @@ export async function getDatabase(): Promise<DatabaseConnection> {
 		bootstrapPromise = openAndMigrateDatabase()
 	}
 
-	return bootstrapPromise
+	const currentAttempt = bootstrapPromise
+	try {
+		return await currentAttempt
+	} catch (error) {
+		// A transient open/migration failure must not poison initialization forever.
+		// Only clear the attempt we awaited so a newer retry cannot be discarded.
+		if (bootstrapPromise === currentAttempt) {
+			bootstrapPromise = null
+		}
+		throw error
+	}
 }
 
 async function openAndMigrateDatabase(): Promise<DatabaseConnection> {

@@ -50,6 +50,12 @@ export class AppSettingsRepository {
 			input.cycleLength,
 			input.cycleAnchorDate,
 		)
+		if (
+			(input.weekCycleMode === 'EVERY_WEEK' && validated.cycleLength !== 1) ||
+			(input.weekCycleMode === 'TWO_WEEK' && validated.cycleLength !== 2)
+		) {
+			throw new Error('Week cycle mode and cycle length are inconsistent')
+		}
 		const current = await this.get()
 		if (!current) {
 			throw new Error('App settings not initialized')

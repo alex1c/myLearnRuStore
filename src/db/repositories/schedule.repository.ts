@@ -67,6 +67,13 @@ export class ScheduleRepository {
 		const startTime = validateClockTime(input.startTime, 'startTime')
 		const endTime = validateClockTime(input.endTime, 'endTime')
 		validateTimeRange(startTime, endTime)
+		const subject = await this.db.getFirstAsync<{ study_period_id: string }>(
+			'SELECT study_period_id FROM subjects WHERE id = ?',
+			[input.subjectId],
+		)
+		if (!subject || subject.study_period_id !== input.studyPeriodId) {
+			throw new Error('Schedule subject must belong to the study period')
+		}
 
 		const timestamp = nowTimestamp()
 		const entry: ScheduleEntry = {

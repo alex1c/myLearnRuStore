@@ -81,6 +81,16 @@ export class AssignmentRepository {
 			throw new Error('Assignment title is required')
 		}
 
+		if (input.sourceScheduleEntryId) {
+			const source = await this.db.getFirstAsync<{ subject_id: string }>(
+				'SELECT subject_id FROM schedule_entries WHERE id = ?',
+				[input.sourceScheduleEntryId],
+			)
+			if (!source || source.subject_id !== input.subjectId) {
+				throw new Error('Assignment subject must match its source schedule entry')
+			}
+		}
+
 		const timestamp = nowTimestamp()
 		const assignment: Assignment = {
 			id: createId(),
