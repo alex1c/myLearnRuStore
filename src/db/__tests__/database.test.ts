@@ -44,7 +44,7 @@ describe('database bootstrap and integrity', () => {
 		const { connection } = await openTestDatabase()
 		await bootstrapDatabase(connection)
 		const versions = await getAppliedMigrationVersions(connection)
-		expect(versions).toEqual([1, 2, 3, 4])
+		expect(versions).toEqual([1, 2, 3, 4, 5])
 	})
 
 	it('is idempotent on repeat bootstrap', async () => {
@@ -52,7 +52,7 @@ describe('database bootstrap and integrity', () => {
 		await bootstrapDatabase(connection)
 		await bootstrapDatabase(connection)
 		const versions = await getAppliedMigrationVersions(connection)
-		expect(versions).toEqual([1, 2, 3, 4])
+		expect(versions).toEqual([1, 2, 3, 4, 5])
 	})
 
 	it('enforces foreign keys for schedule and assignments', async () => {
@@ -123,7 +123,7 @@ describe('database bootstrap and integrity', () => {
 		const { connection } = await openTestDatabase()
 		await runMigrations(connection)
 		const versions = await getAppliedMigrationVersions(connection)
-		expect(versions).toEqual([1, 2, 3, 4])
+		expect(versions).toEqual([1, 2, 3, 4, 5])
 	})
 
 	it('does not record a migration when its transaction fails', async () => {

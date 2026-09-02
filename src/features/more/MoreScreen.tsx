@@ -5,6 +5,12 @@ import { ScreenContainer } from '@/src/components/ScreenContainer'
 import { useAppData } from '@/src/context/AppDataContext'
 import { getCycleBadgeLabel } from '@/src/utils/cycle-labels'
 import { getCurrentCycleIndex } from '@/src/utils/anchor'
+import { buildScheduleExport } from '@/src/services/schedule-export.service'
+import {
+	cleanupOldExportFiles,
+	writeScheduleExportFile,
+} from '@/src/services/schedule-export-file.service'
+import { shareFileUri } from '@/src/services/share/share.service'
 
 /** Minimal settings screen for study mode, period, and cycle configuration. */
 export function MoreScreen() {
@@ -61,6 +67,29 @@ export function MoreScreen() {
 		)
 	}
 
+	async function handleExportSchedule() {
+		if (!repositories || !activePeriod || !settings) {
+			return
+		}
+
+		try {
+			const document = await buildScheduleExport(
+				repositories,
+				settings,
+				activePeriod.id,
+				activePeriod.name,
+			)
+			const uri = await writeScheduleExportFile(document)
+			await shareFileUri(uri, 'application/json')
+			await cleanupOldExportFiles()
+		} catch (error) {
+			Alert.alert(
+				'Ошибка экспорта',
+				error instanceof Error ? error.message : 'Не удалось экспортировать',
+			)
+		}
+	}
+
 	return (
 		<ScreenContainer title="Ещё">
 			<ScrollView contentContainerStyle={styles.content}>
@@ -83,6 +112,20 @@ export function MoreScreen() {
 				</Pressable>
 				<Pressable onPress={() => router.push('/teachers')}>
 					<Text style={styles.link}>Преподаватели</Text>
+				</Pressable>
+
+				<Text style={styles.sectionTitle}>Инструменты</Text>
+				<Pressable onPress={() => router.push('/focus')}>
+					<Text style={styles.link}>Фокус / Таймер</Text>
+				</Pressable>
+				<Pressable onPress={() => router.push('/focus-stats')}>
+					<Text style={styles.link}>Статистика занятий</Text>
+				</Pressable>
+				<Pressable onPress={() => void handleExportSchedule()}>
+					<Text style={styles.link}>Экспорт расписания</Text>
+				</Pressable>
+				<Pressable onPress={() => router.push('/schedule-import')}>
+					<Text style={styles.link}>Импорт расписания</Text>
 				</Pressable>
 			</ScrollView>
 		</ScreenContainer>

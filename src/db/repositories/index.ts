@@ -11,6 +11,9 @@ import { ScheduleRepository } from '@/src/db/repositories/schedule.repository'
 import { StudyPeriodRepository } from '@/src/db/repositories/study-period.repository'
 import { SubjectRepository } from '@/src/db/repositories/subject.repository'
 import { TeacherRepository } from '@/src/db/repositories/teacher.repository'
+import { FocusSessionRepository } from '@/src/db/repositories/focus-session.repository'
+import { ActiveFocusRepository } from '@/src/db/repositories/active-focus.repository'
+import { ScheduleImportRepository } from '@/src/db/repositories/schedule-import.repository'
 
 /** Factory for repository instances bound to one DB connection. */
 export function createRepositories(db: DatabaseConnection) {
@@ -27,6 +30,10 @@ export function createRepositories(db: DatabaseConnection) {
 		assignmentReminders: new AssignmentReminderRepository(db),
 		grades: new GradeRepository(db),
 		attendance: new AttendanceRepository(db),
+		focusSessions: new FocusSessionRepository(db),
+		activeFocus: new ActiveFocusRepository(db),
+		scheduleImports: new ScheduleImportRepository(db),
+		runInTransaction: (task: () => Promise<void>) => db.withTransactionAsync(task),
 	}
 }
 

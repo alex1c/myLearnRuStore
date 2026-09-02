@@ -16,12 +16,23 @@ import { ScreenContainer } from '@/src/components/ScreenContainer'
 import { WeekNavigator } from '@/src/components/WeekNavigator'
 import { useAppData } from '@/src/context/AppDataContext'
 import { getCycleIndexForDate, getScheduleForDate } from '@/src/services/occurrence.service'
+import { buildScheduleExport } from '@/src/services/schedule-export.service'
+import {
+	cleanupOldExportFiles,
+	writeScheduleExportFile,
+} from '@/src/services/schedule-export-file.service'
+import {
+	formatShareTodaySchedule,
+	formatShareWeekSchedule,
+	formatShareLesson,
+} from '@/src/services/share/share-formatters.service'
+import { shareFileUri, shareText } from '@/src/services/share/share.service'
 import { addDays, daysBetween, getTodayLocalDate, startOfWeek } from '@/src/utils/dates'
 
 /** Full weekly schedule screen with day switching and cycle support. */
 export function ScheduleScreen() {
 	const router = useRouter()
-	const { scheduleContext, settings, refreshKey } = useAppData()
+	const { scheduleContext, settings, refreshKey, repositories, activePeriod } = useAppData()
 	const isStudent = settings?.userMode !== 'SCHOOL'
 	const today = getTodayLocalDate()
 	const [weekStart, setWeekStart] = React.useState(startOfWeek(today, 1))
@@ -76,6 +87,17 @@ export function ScheduleScreen() {
 			)
 		}
 
+		options.push('Поделиться занятием')
+		handlers.push(() => {
+			const lesson = lessons.find(
+				(item) =>
+					item.scheduleEntryId === entryId && item.occurrenceDate === occurrenceDate,
+			)
+			if (lesson) {
+				void shareText(formatShareLesson(lesson))
+			}
+		})
+
 		options.push('Отмена')
 		const cancelIndex = options.length - 1
 
@@ -102,6 +124,80 @@ export function ScheduleScreen() {
 				{ text: 'Отмена', style: 'cancel' as const },
 			],
 		)
+	}
+
+	function showShareMenu() {
+		const options = [
+			'Поделиться этим днём',
+			'Поделиться неделей',
+			'Экспорт расписания',
+			'Отмена',
+		]
+
+		const shareDay = () => {
+			void shareText(formatShareTodaySchedule(selectedDate, lessons))
+		}
+
+		const shareWeek = () => {
+			if (!scheduleContext) {
+				return
+			}
+
+			const days = Array.from({ length: 7 }, (_, index) => {
+				const date = addDays(weekStart, index)
+				return {
+					date,
+					occurrences: getScheduleForDate(date, scheduleContext),
+				}
+			})
+			void shareText(formatShareWeekSchedule(weekStart, days))
+		}
+
+		const exportSchedule = () => {
+			void (async () => {
+				if (!repositories || !activePeriod || !settings) {
+					return
+				}
+
+				try {
+					const document = await buildScheduleExport(
+						repositories,
+						settings,
+						activePeriod.id,
+						activePeriod.name,
+					)
+					const uri = await writeScheduleExportFile(document)
+					await shareFileUri(uri, 'application/json')
+					await cleanupOldExportFiles()
+				} catch (error) {
+					Alert.alert(
+						'Ошибка',
+						error instanceof Error ? error.message : 'Не удалось экспортировать',
+					)
+				}
+			})()
+		}
+
+		const handlers = [shareDay, shareWeek, exportSchedule]
+
+		if (Platform.OS === 'ios') {
+			ActionSheetIOS.showActionSheetWithOptions(
+				{ options, cancelButtonIndex: 3 },
+				(index) => {
+					if (index !== undefined && index < handlers.length) {
+						handlers[index]()
+					}
+				},
+			)
+			return
+		}
+
+		Alert.alert('Поделиться', undefined, [
+			{ text: 'Этот день', onPress: shareDay },
+			{ text: 'Неделя', onPress: shareWeek },
+			{ text: 'Экспорт JSON', onPress: exportSchedule },
+			{ text: 'Отмена', style: 'cancel' },
+		])
 	}
 
 	function showAddLessonMenu() {
@@ -145,6 +241,9 @@ export function ScheduleScreen() {
 
 	return (
 		<ScreenContainer title="Расписание">
+			<Pressable onPress={showShareMenu} style={styles.shareLink}>
+				<Text style={styles.shareLinkText}>Поделиться / экспорт</Text>
+			</Pressable>
 			<WeekNavigator
 				weekStart={weekStart}
 				cycleLength={settings?.cycleLength ?? 1}
@@ -211,6 +310,15 @@ export function ScheduleScreen() {
 }
 
 const styles = StyleSheet.create({
+	shareLink: {
+		alignSelf: 'flex-end',
+		marginTop: -8,
+		marginBottom: 8,
+	},
+	shareLinkText: {
+		color: '#2563EB',
+		fontSize: 14,
+	},
 	list: {
 		paddingBottom: 96,
 		paddingTop: 8,

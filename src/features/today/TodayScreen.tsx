@@ -102,6 +102,12 @@ export function TodayScreen() {
 						</View>
 					) : null}
 				</View>
+				<Pressable
+					onPress={() => router.push('/focus')}
+					style={styles.focusLink}
+				>
+					<Text style={styles.focusLinkText}>Начать фокус</Text>
+				</Pressable>
 
 				<SectionCard title="Следующее занятие">
 					<NextLessonSection
@@ -340,7 +346,16 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: 8,
+		marginBottom: 8,
+	},
+	focusLink: {
+		alignSelf: 'flex-start',
 		marginBottom: 16,
+	},
+	focusLinkText: {
+		color: '#2563EB',
+		fontSize: 14,
+		fontWeight: '600',
 	},
 	subtitle: {
 		fontSize: 28,

@@ -34,12 +34,16 @@ import {
 import { parseDecimalInput } from '@/src/services/grade-calculation.service'
 import { formatShortDate } from '@/src/utils/format'
 import { getGradeTypeLabel } from '@/src/utils/grade-labels'
+import { loadFocusStats } from '@/src/services/focus-session.service'
+import { formatShareGradeProgress } from '@/src/services/share/share-formatters.service'
+import { shareText } from '@/src/services/share/share.service'
+import { formatDurationSeconds } from '@/src/utils/duration'
 
 /** Subject performance details with forecast, target, history, attendance. */
 export default function SubjectPerformanceScreen() {
 	const router = useRouter()
 	const params = useLocalSearchParams<{ id?: string }>()
-	const { repositories, settings, refresh, refreshKey } = useAppData()
+	const { repositories, settings, refresh, refreshKey, activePeriod } = useAppData()
 	const isStudent = settings?.userMode !== 'SCHOOL'
 
 	const [subject, setSubject] = React.useState<Subject | null>(null)
@@ -50,6 +54,7 @@ export default function SubjectPerformanceScreen() {
 	const [attendanceData, setAttendanceData] = React.useState<
 		Awaited<ReturnType<typeof loadAttendanceSummary>> | null
 	>(null)
+	const [focusSeconds30d, setFocusSeconds30d] = React.useState(0)
 
 	React.useEffect(() => {
 		if (!repositories || !params.id) {
@@ -63,11 +68,18 @@ export default function SubjectPerformanceScreen() {
 			const attendance = isStudent
 				? await loadAttendanceSummary(repositories, params.id!)
 				: null
+			const focusStats = activePeriod
+				? await loadFocusStats(repositories, activePeriod.id, '30d')
+				: null
+			const subjectFocus = focusStats?.bySubject.find(
+				(item) => item.subjectId === params.id,
+			)
 
 			if (mounted) {
 				setSubject(subj)
 				setGrades(gradeList)
 				setAttendanceData(attendance)
+				setFocusSeconds30d(subjectFocus?.totalSeconds ?? 0)
 				if (subj?.targetGrade !== null && subj?.targetGrade !== undefined) {
 					setTargetInput(String(subj.targetGrade).replace('.', ','))
 				}
@@ -77,7 +89,7 @@ export default function SubjectPerformanceScreen() {
 		return () => {
 			mounted = false
 		}
-	}, [repositories, params.id, refreshKey, isStudent])
+	}, [repositories, params.id, refreshKey, isStudent, activePeriod])
 
 	if (!subject) {
 		return (
@@ -148,7 +160,39 @@ export default function SubjectPerformanceScreen() {
 						{grades.length === 0 ? 'Оценок пока нет' : formatGradeAverage(average)}
 					</Text>
 					<Text style={styles.meta}>Оценок: {grades.length}</Text>
+					<Pressable
+						onPress={() => {
+							if (!subject) {
+								return
+							}
+
+							void shareText(
+								formatShareGradeProgress({
+									subject,
+									average,
+									recentGrades: grades,
+								}),
+							)
+						}}
+						style={styles.linkButton}
+					>
+						<Text style={styles.linkText}>Поделиться прогрессом</Text>
+					</Pressable>
 				</SectionCard>
+
+				{focusSeconds30d > 0 ? (
+					<SectionCard title="Время занятий">
+						<Text style={styles.meta}>
+							за 30 дней: {formatDurationSeconds(focusSeconds30d)}
+						</Text>
+						<Pressable
+							onPress={() => router.push('/focus-stats')}
+							style={styles.linkButton}
+						>
+							<Text style={styles.linkText}>Статистика →</Text>
+						</Pressable>
+					</SectionCard>
+				) : null}
 
 				<SectionCard title="Цель">
 					<View style={styles.targetRow}>

@@ -165,7 +165,7 @@ describe('assignment repository', () => {
 		)
 
 		await runMigrations(connection)
-		expect(await getAppliedMigrationVersions(connection)).toEqual([1, 2, 3, 4])
+		expect(await getAppliedMigrationVersions(connection)).toEqual([1, 2, 3, 4, 5])
 
 		const reposV2 = createRepositories(connection)
 		const list = await reposV2.assignments.listAll()

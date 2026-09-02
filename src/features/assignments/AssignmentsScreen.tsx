@@ -22,6 +22,9 @@ import {
 	completeAssignment,
 	reopenAssignment,
 } from '@/src/services/assignment.service'
+import { getTomorrowLocalDate } from '@/src/services/deadline.service'
+import { formatShareTomorrowHomework } from '@/src/services/share/share-formatters.service'
+import { shareText } from '@/src/services/share/share.service'
 import type { AssignmentFilter, AssignmentListItem } from '@/src/types/assignment'
 
 /** Full assignments tab with filters, grouping, and quick complete. */
@@ -122,6 +125,28 @@ export function AssignmentsScreen() {
 
 	return (
 		<ScreenContainer title="Задания">
+			<Pressable
+				onPress={() => {
+					const tomorrow = getTomorrowLocalDate()
+					const tomorrowItems = items.filter(
+						(item) =>
+							item.dueDate === tomorrow &&
+							item.status !== 'COMPLETED' &&
+							item.status !== 'CANCELLED',
+					)
+					void shareText(
+						formatShareTomorrowHomework(
+							tomorrowItems.map((item) => ({
+								subjectName: item.subjectName,
+								title: item.title,
+							})),
+						),
+					)
+				}}
+				style={styles.shareLink}
+			>
+				<Text style={styles.shareLinkText}>Поделиться заданиями на завтра</Text>
+			</Pressable>
 			<FilterChips selected={filter} onSelect={setFilter} />
 
 			<ScrollView
@@ -191,6 +216,14 @@ export function AssignmentsScreen() {
 }
 
 const styles = StyleSheet.create({
+	shareLink: {
+		alignSelf: 'flex-end',
+		marginBottom: 8,
+	},
+	shareLinkText: {
+		color: '#2563EB',
+		fontSize: 14,
+	},
 	scroll: {
 		paddingBottom: 96,
 	},

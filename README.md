@@ -70,37 +70,36 @@ Two-week schedules use `cycle_anchor_date` in `app_settings` plus abstract `CYCL
 
 ## Current phase
 
-**Phase 4 — Grades, Forecasts & Attendance**
+**Phase 5 — Focus, Time Statistics & Share/Export**
 
 Implemented:
 
-- Performance tab with subject cards (average, target, recent grades)
-- Subject details: forecast, target progress, history, stats
-- Grade add/edit/delete (FIVE_POINT, TEN_POINT, HUNDRED_POINT)
-- Simple and weighted averages (auto when any weight ≠ 1)
-- «Что будет, если…» prediction for 5-point scale
-- «Сколько нужно до цели» with impossible exact-max handling
-- Student attendance (occurrence + manual), rate and target helpers
-- Grade from TEST/EXAM assignment
-- Migration v3: `subject.grade_scale`, `subject.attendance_target`, `grades.assignment_id`
+- Focus timer with timestamp-based countdown (survives background)
+- Pause/resume, early finish with save prompt, restart recovery
+- Focus history (today) and delete
+- Study time statistics (today / 7 / 30 / all) with weekly activity bars
+- Share: today, week, lesson, assignment, tomorrow homework, grade progress, focus stats
+- Schedule export (JSON `myLearnScheduleExport` v1) and import with preview
+- Duplicate import detection via `schedule_import_history`
+- Migration v5: `active_focus_session`, import history, focus indexes
 
-Not implemented yet (Phase 5+):
+Not implemented yet (Phase 6+):
 
-- Pomodoro / focus stats
-- Share / backup / ads / analytics
+- Backup/restore
+- AppMetrica / Yandex Ads
+- Native widget
+- Image share cards (text share fallback always available)
 
-### Grade calculation
+### Focus timer semantics
 
-- Simple: `sum(values) / count`
-- Weighted: `Σ(value×weight) / Σ(weight)` when any weight ≠ 1
-- Display uses 2 decimal places with comma; calculations use raw numbers
-- Target comparison uses raw values (4.495 < 4.50)
+- Remaining time derived from `startedAt`, `accumulatedPauseMs`, and clock — not interval counters
+- Completed sessions stored in `focus_sessions.duration_seconds`
+- Active in-progress state in singleton `active_focus_session`
 
-### Attendance semantics
+### Share vs export
 
-**Rate = PRESENT / (PRESENT + ABSENT)**
-
-`EXCUSED` is shown separately and does not reduce the percentage.
+- **Share** — human-readable text for messaging apps
+- **Export** — machine-readable recurring schedule templates (`myLearnScheduleExport` v1)
 
 ### Assignment lifecycle (Phase 3)
 

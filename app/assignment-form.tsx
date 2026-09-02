@@ -38,6 +38,12 @@ import {
 import { getTomorrowLocalDate } from '@/src/services/deadline.service'
 import { formatShortDate } from '@/src/utils/format'
 import { ValidationError } from '@/src/utils/validation'
+import { getAssignmentFocusSeconds } from '@/src/services/focus-session.service'
+import { formatShareAssignment } from '@/src/services/share/share-formatters.service'
+import { shareText } from '@/src/services/share/share.service'
+import { formatAssignmentDueLabel } from '@/src/services/assignment-query.service'
+import { formatDurationSeconds } from '@/src/utils/duration'
+import type { AssignmentListItem } from '@/src/types/assignment'
 
 /** Add/edit assignment form presented as a modal route. */
 export default function AssignmentFormScreen() {
@@ -78,6 +84,8 @@ export default function AssignmentFormScreen() {
 	const [permissionExplainerVisible, setPermissionExplainerVisible] = React.useState(false)
 	const [pendingReminderConfig, setPendingReminderConfig] =
 		React.useState<ReminderConfigInput | null>(null)
+	const [focusSeconds, setFocusSeconds] = React.useState(0)
+	const [loadedItem, setLoadedItem] = React.useState<AssignmentListItem | null>(null)
 
 	React.useEffect(() => {
 		if (!repositories || !activePeriod) {
@@ -102,6 +110,7 @@ export default function AssignmentFormScreen() {
 				}
 
 				setSubjectId(item.subjectId)
+				setLoadedItem(item)
 				setTitle(item.title)
 				setDueDate(item.dueDate)
 				setDueTime(item.dueTime ?? '')
@@ -118,6 +127,9 @@ export default function AssignmentFormScreen() {
 					setReminderKind(reminder.reminderKind)
 					setRelativeMinutes(reminder.relativeMinutes)
 				}
+
+				const focusTotal = await getAssignmentFocusSeconds(repositories, params.id!)
+				setFocusSeconds(focusTotal)
 			})()
 		}
 	}, [repositories, activePeriod, params.id, params.scheduleEntryId])
@@ -530,6 +542,47 @@ export default function AssignmentFormScreen() {
 						</Pressable>
 					) : null}
 
+					{isEdit && focusSeconds > 0 ? (
+						<Text style={styles.focusTime}>
+							Потрачено времени: {formatDurationSeconds(focusSeconds)}
+						</Text>
+					) : null}
+
+					{isEdit && subjectId ? (
+						<Pressable
+							onPress={() =>
+								router.push(
+									`/focus?subjectId=${subjectId}&assignmentId=${params.id}`,
+								)
+							}
+							style={styles.secondaryAction}
+						>
+							<Text style={styles.secondaryActionText}>Начать фокус</Text>
+						</Pressable>
+					) : null}
+
+					{isEdit && subjectId ? (
+						<Pressable
+							onPress={() => {
+								const subjectName =
+									subjects.find((item) => item.id === subjectId)?.name ?? 'Предмет'
+								void shareText(
+									formatShareAssignment({
+										subjectName,
+										title,
+										dueLabel: loadedItem
+											? formatAssignmentDueLabel(loadedItem)
+											: formatShortDate(dueDate),
+										notes,
+									}),
+								)
+							}}
+							style={styles.secondaryAction}
+						>
+							<Text style={styles.secondaryActionText}>Поделиться заданием</Text>
+						</Pressable>
+					) : null}
+
 					{isEdit ? (
 						<Pressable onPress={() => void handleDelete()} style={styles.deleteButton}>
 							<Text style={styles.deleteText}>Удалить задание</Text>
@@ -658,6 +711,21 @@ const styles = StyleSheet.create({
 		color: '#4338CA',
 		fontSize: 15,
 		fontWeight: '600',
+	},
+	focusTime: {
+		marginTop: 12,
+		fontSize: 14,
+		color: '#64748B',
+	},
+	secondaryAction: {
+		marginTop: 8,
+		alignItems: 'center',
+		padding: 10,
+	},
+	secondaryActionText: {
+		color: '#2563EB',
+		fontSize: 15,
+		fontWeight: '500',
 	},
 	deleteText: {
 		color: '#DC2626',
