@@ -54,7 +54,7 @@ Principles:
 - Versioned migration system via `schema_migrations`
 - `PRAGMA foreign_keys = ON` on bootstrap
 - Idempotent bootstrap with singleton connection promise (concurrent-open protection)
-- Migration version **3** — grade scale per subject, attendance target, grade-assignment link
+- Migration version **5** — focus timer persistence, schedule import history
 
 ### Tables
 
