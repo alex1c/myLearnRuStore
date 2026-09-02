@@ -211,6 +211,7 @@ export interface Attendance {
 	id: string
 	subjectId: string
 	scheduleEntryId: string | null
+	scheduleExceptionId: string | null
 	attendanceDate: LocalDate
 	status: AttendanceStatus
 	notes: string | null

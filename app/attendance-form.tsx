@@ -19,6 +19,7 @@ export default function AttendanceFormScreen() {
 	const params = useLocalSearchParams<{
 		subjectId?: string
 		scheduleEntryId?: string
+		scheduleExceptionId?: string
 		date?: string
 	}>()
 	const { repositories, refresh } = useAppData()
@@ -39,6 +40,7 @@ export default function AttendanceFormScreen() {
 				attendanceDate: date,
 				status,
 				scheduleEntryId: params.scheduleEntryId ?? null,
+				scheduleExceptionId: params.scheduleExceptionId ?? null,
 			})
 			await refresh()
 			router.back()

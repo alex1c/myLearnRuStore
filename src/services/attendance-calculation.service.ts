@@ -68,14 +68,7 @@ export function calculateAdditionalAbsencesAllowed(
 		return 0
 	}
 
-	for (let n = 0; n <= 10000; n += 1) {
-		const rate = present / (present + absent + n)
-		if (rate < threshold) {
-			return Math.max(0, n - 1)
-		}
-	}
-
-	return 10000
+	return Math.max(0, Math.floor(present / threshold - present - absent + 1e-12))
 }
 
 /** Min consecutive presents needed to reach threshold when currently below. */
@@ -96,14 +89,14 @@ export function calculateRequiredPresentsToReachTarget(
 		return 0
 	}
 
-	for (let k = 1; k <= 10000; k += 1) {
-		const rate = (present + k) / (total + k)
-		if (rate >= threshold) {
-			return k
-		}
+	if (threshold >= 1) {
+		return absent === 0 ? 0 : null
 	}
 
-	return null
+	return Math.max(
+		1,
+		Math.ceil((threshold * total - present) / (1 - threshold) - 1e-12),
+	)
 }
 
 /** Whether attendance is below the configured target. */

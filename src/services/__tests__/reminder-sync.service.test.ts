@@ -2,6 +2,10 @@ import { openTestDatabase } from '@/src/db/adapters/sqljs-test-adapter'
 import { bootstrapDatabase } from '@/src/db/database'
 import { createRepositories } from '@/src/db/repositories'
 import {
+	reconcileAssignmentReminders,
+	syncAssignmentReminder,
+} from '@/src/services/assignment-reminder-sync.service'
+import {
 	completeAssignment,
 	createAssignment,
 	reopenAssignment,
@@ -22,6 +26,8 @@ function createMockScheduler(): NotificationScheduler & {
 		scheduled,
 		cancelled,
 		requestPermissions: jest.fn(async () => true),
+		hasPermission: jest.fn(async () => true),
+		isScheduled: jest.fn(async () => false),
 		schedule: jest.fn(async (input) => {
 			scheduled.push({ assignmentId: input.assignmentId, fireAt: input.fireAt })
 			return `notif-${input.assignmentId}`
@@ -82,5 +88,26 @@ describe('assignment reminder sync', () => {
 		await reopenAssignment(repos, assignment.id, 'Math')
 		const reminder = await repos.assignmentReminders.getByAssignmentId(assignment.id)
 		expect(reminder?.enabled).toBe(true)
+	})
+
+	it('does not duplicate an active platform notification during reconciliation', async () => {
+		const scheduler = createMockScheduler()
+		setNotificationSchedulerForTests(scheduler)
+		const { connection } = await openTestDatabase()
+		await bootstrapDatabase(connection)
+		const repos = createRepositories(connection)
+		const period = await repos.studyPeriods.create({
+			name: '2026', type: 'YEAR', startDate: '2026-09-01', endDate: '2099-12-31',
+		})
+		const subject = await repos.subjects.create({ studyPeriodId: period.id, name: 'Math' })
+		const assignment = await repos.assignments.create({
+			subjectId: subject.id, title: 'Test', dueDate: '2099-12-31', dueTime: '12:00',
+		})
+		await syncAssignmentReminder(repos, assignment, subject.name, {
+			enabled: true, reminderKind: 'RELATIVE', relativeMinutes: 60,
+		})
+		jest.mocked(scheduler.isScheduled).mockResolvedValue(true)
+		await reconcileAssignmentReminders(repos)
+		expect(scheduler.scheduled).toHaveLength(1)
 	})
 })

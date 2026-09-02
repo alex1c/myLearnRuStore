@@ -62,6 +62,15 @@ export interface UpdateGradeInput {
 export class GradeRepository {
 	constructor(private readonly db: DatabaseConnection) {}
 
+	private async validateSubjectScale(subjectId: string, gradeScale: GradeScale): Promise<void> {
+		const subject = await this.db.getFirstAsync<{ grade_scale: string }>(
+			'SELECT grade_scale FROM subjects WHERE id = ?', [subjectId],
+		)
+		if (!subject || subject.grade_scale !== gradeScale) {
+			throw new Error('Grade scale must match its subject')
+		}
+	}
+
 	private async validateAssignmentIntegrity(
 		subjectId: string,
 		assignmentId: string | null | undefined,
@@ -120,6 +129,7 @@ export class GradeRepository {
 	}
 
 	async create(input: CreateGradeInput): Promise<Grade> {
+		await this.validateSubjectScale(input.subjectId, input.gradeScale)
 		const value = validateGradeForScale(
 			validateGradeValue(input.value),
 			input.gradeScale,
@@ -174,6 +184,7 @@ export class GradeRepository {
 		}
 
 		const gradeScale = input.gradeScale ?? existing.gradeScale
+		await this.validateSubjectScale(existing.subjectId, gradeScale)
 		const value = validateGradeForScale(
 			validateGradeValue(input.value ?? existing.value),
 			gradeScale,

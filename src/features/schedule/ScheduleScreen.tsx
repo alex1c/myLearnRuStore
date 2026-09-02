@@ -187,6 +187,10 @@ export function ScheduleScreen() {
 										selectedDate,
 										lesson.subjectId,
 									)
+								} else if (isStudent && lesson.exceptionId) {
+									router.push(
+										`/attendance-form?subjectId=${lesson.subjectId}&scheduleExceptionId=${lesson.exceptionId}&date=${selectedDate}`,
+									)
 								}
 							}}
 						/>

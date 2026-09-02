@@ -131,12 +131,18 @@ export async function reconcileAssignmentReminders(
 			continue
 		}
 
-		if (reminder.notificationId) {
-			await scheduler.cancel(reminder.notificationId)
+		if (reminder.notificationId && await scheduler.isScheduled(reminder.notificationId)) {
+			continue
 		}
 
 		const fireDate = reminder.scheduledAt ? new Date(reminder.scheduledAt) : null
 		if (!fireDate || fireDate.getTime() <= Date.now()) {
+			continue
+		}
+
+		// Reconciliation never prompts. Persisted intent remains enabled so the user
+		// can restore it explicitly after granting permission.
+		if (!await scheduler.hasPermission()) {
 			continue
 		}
 

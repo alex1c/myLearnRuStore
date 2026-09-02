@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications'
+import { Platform } from 'react-native'
 import type {
 	NotificationScheduler,
 	ScheduleNotificationInput,
@@ -17,7 +18,26 @@ Notifications.setNotificationHandler({
 
 /** Expo Notifications implementation for Android/iOS. */
 export class ExpoNotificationScheduler implements NotificationScheduler {
+	private async ensureChannel(): Promise<void> {
+		if (Platform.OS === 'android') {
+			await Notifications.setNotificationChannelAsync('study-reminders', {
+				name: 'Study reminders',
+				importance: Notifications.AndroidImportance.HIGH,
+			})
+		}
+	}
+
+	async hasPermission(): Promise<boolean> {
+		return (await Notifications.getPermissionsAsync()).granted
+	}
+
+	async isScheduled(notificationId: string): Promise<boolean> {
+		const scheduled = await Notifications.getAllScheduledNotificationsAsync()
+		return scheduled.some((item) => item.identifier === notificationId)
+	}
+
 	async requestPermissions(): Promise<boolean> {
+		await this.ensureChannel()
 		const settings = await Notifications.getPermissionsAsync()
 		if (settings.granted) {
 			return true
@@ -31,6 +51,7 @@ export class ExpoNotificationScheduler implements NotificationScheduler {
 		if (input.fireAt.getTime() <= Date.now()) {
 			return null
 		}
+		await this.ensureChannel()
 
 		const id = await Notifications.scheduleNotificationAsync({
 			content: {
@@ -41,6 +62,7 @@ export class ExpoNotificationScheduler implements NotificationScheduler {
 			trigger: {
 				type: Notifications.SchedulableTriggerInputTypes.DATE,
 				date: input.fireAt,
+				channelId: 'study-reminders',
 			},
 		})
 
@@ -66,6 +88,14 @@ export class ExpoNotificationScheduler implements NotificationScheduler {
 
 /** No-op scheduler for tests and unsupported environments. */
 export class NoOpNotificationScheduler implements NotificationScheduler {
+	async hasPermission(): Promise<boolean> {
+		return false
+	}
+
+	async isScheduled(): Promise<boolean> {
+		return false
+	}
+
 	async requestPermissions(): Promise<boolean> {
 		return false
 	}

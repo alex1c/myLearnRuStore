@@ -107,4 +107,51 @@ describe('grade and attendance repositories', () => {
 		const records = await repos.attendance.listBySubject(math.id)
 		expect(records).toHaveLength(2)
 	})
+
+	it('prevents mixed grade scales, historical reinterpretation, and assignment mismatch', async () => {
+		const { connection } = await openTestDatabase()
+		await bootstrapDatabase(connection)
+		const repos = createRepositories(connection)
+		const period = await repos.studyPeriods.create({
+			name: '2026', type: 'YEAR', startDate: '2026-09-01', endDate: '2027-05-31',
+		})
+		const math = await repos.subjects.create({ studyPeriodId: period.id, name: 'Math' })
+		const physics = await repos.subjects.create({ studyPeriodId: period.id, name: 'Physics' })
+		await expect(repos.grades.create({
+			subjectId: math.id, value: 7, gradeScale: 'TEN_POINT', date: '2026-09-10',
+		})).rejects.toThrow('must match')
+		const assignment = await repos.assignments.create({
+			subjectId: math.id, title: 'Test', dueDate: '2026-09-10',
+		})
+		await repos.grades.create({
+			subjectId: math.id, value: 5, gradeScale: 'FIVE_POINT',
+			date: '2026-09-10', assignmentId: assignment.id,
+		})
+		await expect(repos.subjects.update(math.id, { gradeScale: 'TEN_POINT' }))
+			.rejects.toThrow('Cannot change grade scale')
+		await expect(repos.assignments.update(assignment.id, { subjectId: physics.id }))
+			.rejects.toThrow()
+	})
+
+	it('keeps one-off attendance distinct from manual attendance', async () => {
+		const { connection } = await openTestDatabase()
+		await bootstrapDatabase(connection)
+		const repos = createRepositories(connection)
+		const period = await repos.studyPeriods.create({
+			name: '2026', type: 'YEAR', startDate: '2026-09-01', endDate: '2027-05-31',
+		})
+		const subject = await repos.subjects.create({ studyPeriodId: period.id, name: 'Math' })
+		const added = await repos.scheduleExceptions.create({
+			studyPeriodId: period.id, exceptionDate: '2026-09-10', exceptionType: 'ADDED',
+			subjectId: subject.id, startTime: '09:00', endTime: '10:00',
+		})
+		await repos.attendance.upsert({
+			subjectId: subject.id, attendanceDate: '2026-09-10', status: 'PRESENT',
+			scheduleExceptionId: added.id,
+		})
+		await repos.attendance.upsert({
+			subjectId: subject.id, attendanceDate: '2026-09-10', status: 'ABSENT',
+		})
+		expect(await repos.attendance.listBySubject(subject.id)).toHaveLength(2)
+	})
 })

@@ -30,12 +30,18 @@ describe('attendance-calculation.service', () => {
 
 	it('calculates additional absences allowed', () => {
 		const counts = { present: 8, absent: 2, excused: 0 }
-		expect(calculateAdditionalAbsencesAllowed(counts, 80)).toBeGreaterThanOrEqual(0)
+		expect(calculateAdditionalAbsencesAllowed(counts, 75)).toBe(0)
 	})
 
 	it('calculates required presents when below target', () => {
 		const counts = { present: 7, absent: 3, excused: 0 }
 		const needed = calculateRequiredPresentsToReachTarget(counts, 80)
 		expect(needed).toBeGreaterThan(0)
+	})
+
+	it('reports exact 100% as unattainable after any absence', () => {
+		expect(calculateRequiredPresentsToReachTarget(
+			{ present: 8, absent: 1, excused: 0 }, 100,
+		)).toBeNull()
 	})
 })

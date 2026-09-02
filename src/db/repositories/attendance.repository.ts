@@ -7,6 +7,7 @@ interface AttendanceRow {
 	id: string
 	subject_id: string
 	schedule_entry_id: string | null
+	schedule_exception_id: string | null
 	attendance_date: string
 	status: string
 	notes: string | null
@@ -19,6 +20,7 @@ function mapRow(row: AttendanceRow): Attendance {
 		id: row.id,
 		subjectId: row.subject_id,
 		scheduleEntryId: row.schedule_entry_id,
+		scheduleExceptionId: row.schedule_exception_id,
 		attendanceDate: row.attendance_date,
 		status: row.status as AttendanceStatus,
 		notes: row.notes,
@@ -32,6 +34,7 @@ export interface UpsertAttendanceInput {
 	attendanceDate: LocalDate
 	status: AttendanceStatus
 	scheduleEntryId?: string | null
+	scheduleExceptionId?: string | null
 	notes?: string | null
 }
 
@@ -82,7 +85,8 @@ export class AttendanceRepository {
 	): Promise<Attendance | null> {
 		const row = await this.db.getFirstAsync<AttendanceRow>(
 			`SELECT * FROM attendance
-			 WHERE subject_id = ? AND attendance_date = ? AND schedule_entry_id IS NULL`,
+			 WHERE subject_id = ? AND attendance_date = ?
+				AND schedule_entry_id IS NULL AND schedule_exception_id IS NULL`,
 			[subjectId, attendanceDate],
 		)
 		return row ? mapRow(row) : null
@@ -91,6 +95,9 @@ export class AttendanceRepository {
 	/** Create or update attendance for a schedule occurrence. */
 	async upsert(input: UpsertAttendanceInput): Promise<Attendance> {
 		const date = validateLocalDate(input.attendanceDate, 'attendanceDate')
+		if (input.scheduleEntryId && input.scheduleExceptionId) {
+			throw new Error('Attendance can reference only one occurrence source')
+		}
 		await this.validateScheduleIntegrity(input.subjectId, input.scheduleEntryId)
 
 		if (input.scheduleEntryId) {
@@ -103,6 +110,14 @@ export class AttendanceRepository {
 					status: input.status,
 					notes: input.notes ?? null,
 				})
+			}
+		} else if (input.scheduleExceptionId) {
+			const row = await this.db.getFirstAsync<AttendanceRow>(
+				'SELECT * FROM attendance WHERE schedule_exception_id = ?',
+				[input.scheduleExceptionId],
+			)
+			if (row) {
+				return this.update(row.id, { status: input.status, notes: input.notes ?? null })
 			}
 		} else {
 			const existing = await this.getManualForDate(input.subjectId, date)
@@ -119,6 +134,7 @@ export class AttendanceRepository {
 			id: createId(),
 			subjectId: input.subjectId,
 			scheduleEntryId: input.scheduleEntryId ?? null,
+			scheduleExceptionId: input.scheduleExceptionId ?? null,
 			attendanceDate: date,
 			status: input.status,
 			notes: input.notes ?? null,
@@ -128,13 +144,14 @@ export class AttendanceRepository {
 
 		await this.db.runAsync(
 			`INSERT INTO attendance (
-				id, subject_id, schedule_entry_id, attendance_date,
+				id, subject_id, schedule_entry_id, schedule_exception_id, attendance_date,
 				status, notes, created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				record.id,
 				record.subjectId,
 				record.scheduleEntryId,
+				record.scheduleExceptionId,
 				record.attendanceDate,
 				record.status,
 				record.notes,

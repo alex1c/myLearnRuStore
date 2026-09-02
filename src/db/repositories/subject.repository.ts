@@ -135,6 +135,15 @@ export class SubjectRepository {
 		}
 
 		const gradeScale = input.gradeScale ?? existing.gradeScale
+		if (gradeScale !== existing.gradeScale) {
+			const row = await this.db.getFirstAsync<{ count: number }>(
+				'SELECT COUNT(*) AS count FROM grades WHERE subject_id = ?',
+				[id],
+			)
+			if ((row?.count ?? 0) > 0) {
+				throw new Error('Cannot change grade scale after grades have been recorded')
+			}
+		}
 		let targetGrade = existing.targetGrade
 		if (input.targetGrade !== undefined) {
 			targetGrade =

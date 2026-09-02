@@ -6,6 +6,9 @@ import { createId } from '@/src/utils/id'
 const PHOTO_ROOT = `${FileSystem.documentDirectory ?? ''}assignment-photos`
 
 async function ensureAssignmentPhotoDir(assignmentId: string): Promise<string> {
+	if (!/^[A-Za-z0-9-]+$/.test(assignmentId)) {
+		throw new Error('Invalid assignment id')
+	}
 	const dir = `${PHOTO_ROOT}/${assignmentId}`
 	const info = await FileSystem.getInfoAsync(dir)
 	if (!info.exists) {
@@ -34,7 +37,12 @@ export async function addAssignmentPhoto(
 		throw new Error('Не удалось сохранить фото')
 	}
 
-	await repos.assignmentPhotos.create(assignmentId, destUri)
+	try {
+		await repos.assignmentPhotos.create(assignmentId, destUri)
+	} catch (error) {
+		await deleteManagedFile(destUri)
+		throw error
+	}
 }
 
 /** Delete managed file best-effort. */
