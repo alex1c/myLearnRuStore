@@ -70,25 +70,48 @@ Two-week schedules use `cycle_anchor_date` in `app_settings` plus abstract `CYCL
 
 ## Current phase
 
-**Phase 5 — Focus, Time Statistics & Share/Export**
+**Phase 6 — Backup, Monetization & Release Prep (v1.0.0 feature freeze)**
 
 Implemented:
 
-- Focus timer with timestamp-based countdown (survives background)
-- Pause/resume, early finish with save prompt, restart recovery
-- Focus history (today) and delete
-- Study time statistics (today / 7 / 30 / all) with weekly activity bars
-- Share: today, week, lesson, assignment, tomorrow homework, grade progress, focus stats
-- Schedule export (JSON `myLearnScheduleExport` v1) and import with preview
-- Duplicate import detection via `schedule_import_history`
-- Migration v5: `active_focus_session`, import history, focus indexes
+- Full backup/restore (`myLearnBackup` v1 ZIP: manifest, data, photos)
+- Restore replaces all local data with validation (zip slip, FK, version checks)
+- CSV export: grades, attendance, focus history (formula-injection safe)
+- AppMetrica production analytics (PII-free event params)
+- Yandex Mobile Ads: banners (Today, Performance, Focus Stats) + gated interstitial
+- Privacy policy (`docs/privacy.html`)
+- About screen with version and privacy link
+- Text share retained; image share deferred (no dead native deps)
 
-Not implemented yet (Phase 6+):
+### Backup format
 
-- Backup/restore
-- AppMetrica / Yandex Ads
+- Kind: `myLearnBackup`, version `1`
+- Includes: settings, periods, teachers, subjects, schedule, exceptions, assignments, photos, reminder intent, grades, attendance, completed focus sessions, holidays, import history
+- Excludes: `active_focus_session`, platform `notification_id` values
+- Photos use archive-relative paths; restore writes to managed app storage
+
+### Advertising policy (v1.0.0)
+
+- Banners: one per screen (Today, Performance, Focus Stats only — not on running timer)
+- Interstitial: session ≥ 5, once per session, 24h cooldown, eligible contexts only
+- **Not used:** App Open, Rewarded, Native ad units
+
+### Analytics events
+
+`app_open`, `onboarding_completed`, `schedule_lesson_created`, `assignment_created`, `assignment_completed`, `grade_added`, `attendance_marked`, `focus_started`, `focus_completed`, `schedule_shared`, `schedule_exported`, `schedule_imported`, `backup_created`, `backup_restored`
+
+Configuration: `src/config/analytics.ts`, `src/config/ads.ts`
+
+### Release requirements (user actions)
+
+- Support email before RuStore listing
+- Enable/verify GitHub Pages for privacy URL
+- Production keystore and signed AAB (after Final Codex review)
+
+Not implemented (post-v1):
+
 - Native widget
-- Image share cards (text share fallback always available)
+- Image share cards
 
 ### Focus timer semantics
 

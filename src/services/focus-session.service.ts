@@ -21,6 +21,25 @@ import {
 	type ActiveFocusTimerState,
 } from '@/src/services/focus-timer.service'
 import { elapsedMsToSavedMinutes } from '@/src/utils/duration'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
+
+function focusDurationBucket(durationSeconds: number): string {
+	const minutes = Math.round(durationSeconds / 60)
+	if (minutes < 15) {
+		return 'under_15'
+	}
+
+	if (minutes < 30) {
+		return '15_30'
+	}
+
+	if (minutes < 60) {
+		return '30_60'
+	}
+
+	return '60_plus'
+}
 
 export interface FinalizeFocusResult {
 	session: FocusSession
@@ -53,6 +72,9 @@ export async function startFocusSession(
 	const notificationId = await scheduleFocusCompletionNotification(state)
 	state.notificationId = notificationId
 	await repos.activeFocus.save(state)
+	trackEvent(ANALYTICS_EVENTS.FOCUS_STARTED, {
+		focus_duration_bucket: focusDurationBucket(input.plannedDurationSeconds),
+	})
 	return state
 }
 
@@ -120,6 +142,10 @@ export async function finalizeFocusSession(
 		endedAt: new Date(input.endedAtMs).toISOString(),
 		durationSeconds,
 		completed: isTimerComplete(input.endedAtMs, input.state),
+	})
+
+	trackEvent(ANALYTICS_EVENTS.FOCUS_COMPLETED, {
+		focus_duration_bucket: focusDurationBucket(durationSeconds),
 	})
 
 	return {

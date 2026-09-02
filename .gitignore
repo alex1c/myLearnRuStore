@@ -43,6 +43,8 @@ yarn-error.*
 .env
 .env.*
 !.env.example
+credentials/
+keystore.properties
 
 # typescript
 *.tsbuildinfo

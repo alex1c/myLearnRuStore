@@ -103,6 +103,8 @@ function RootNavigator() {
 			<Stack.Screen name="focus" options={{ title: 'Фокус' }} />
 			<Stack.Screen name="focus-stats" options={{ title: 'Статистика' }} />
 			<Stack.Screen name="schedule-import" options={{ title: 'Импорт' }} />
+			<Stack.Screen name="backup-restore" options={{ title: 'Резервная копия' }} />
+			<Stack.Screen name="about" options={{ title: 'О приложении' }} />
 			<Stack.Screen name="subjects" options={{ title: 'Предметы' }} />
 			<Stack.Screen name="teachers" options={{ title: 'Преподаватели' }} />
 		</Stack>

@@ -20,6 +20,8 @@ import {
 import { getTodayLocalDate } from '@/src/utils/dates'
 import { GRADE_TYPE_OPTIONS } from '@/src/utils/grade-labels'
 import { ValidationError } from '@/src/utils/validation'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
 
 /** Add/edit grade form. */
 export default function GradeFormScreen() {
@@ -131,6 +133,9 @@ export default function GradeFormScreen() {
 				await repositories.grades.update(params.id, payload)
 			} else {
 				await repositories.grades.create(payload)
+				trackEvent(ANALYTICS_EVENTS.GRADE_ADDED, {
+					grade_scale: gradeScale,
+				})
 			}
 
 			await refresh()

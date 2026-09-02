@@ -13,6 +13,8 @@ import {
 	deleteAssignmentPhoto,
 	deleteManagedFile,
 } from '@/src/services/assignment-photo-storage.service'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
 
 export interface SaveAssignmentInput extends CreateAssignmentInput {
 	reminder?: ReminderConfigInput
@@ -41,6 +43,11 @@ export async function createAssignment(
 		)
 		reminderWarning = result.warning
 	}
+
+	trackEvent(ANALYTICS_EVENTS.ASSIGNMENT_CREATED, {
+		assignment_type: input.assignmentType ?? 'HOMEWORK',
+		has_photo: 0,
+	})
 
 	return { assignment, reminderWarning }
 }
@@ -74,7 +81,11 @@ export async function completeAssignment(
 	id: string,
 ): Promise<Assignment> {
 	await cancelAssignmentReminder(repos, id)
-	return repos.assignments.complete(id)
+	const assignment = await repos.assignments.complete(id)
+	trackEvent(ANALYTICS_EVENTS.ASSIGNMENT_COMPLETED, {
+		assignment_type: assignment.assignmentType,
+	})
+	return assignment
 }
 
 /** Reopen and restore reminder if still in future. */

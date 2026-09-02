@@ -11,6 +11,15 @@ import {
 	writeScheduleExportFile,
 } from '@/src/services/schedule-export-file.service'
 import { shareFileUri } from '@/src/services/share/share.service'
+import {
+	exportAttendanceCsv,
+	exportFocusCsv,
+	exportGradesCsv,
+} from '@/src/services/csv-export.service'
+import * as FileSystem from 'expo-file-system/legacy'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
+import { toUserErrorMessage } from '@/src/utils/user-error'
 
 /** Minimal settings screen for study mode, period, and cycle configuration. */
 export function MoreScreen() {
@@ -82,11 +91,65 @@ export function MoreScreen() {
 			const uri = await writeScheduleExportFile(document)
 			await shareFileUri(uri, 'application/json')
 			await cleanupOldExportFiles()
+			trackEvent(ANALYTICS_EVENTS.SCHEDULE_EXPORTED)
 		} catch (error) {
 			Alert.alert(
 				'Ошибка экспорта',
-				error instanceof Error ? error.message : 'Не удалось экспортировать',
+				toUserErrorMessage(error, 'Не удалось экспортировать'),
 			)
+		}
+	}
+
+	async function shareCsv(content: string, filename: string) {
+		const dir = `${FileSystem.cacheDirectory ?? ''}exports`
+		const dirInfo = await FileSystem.getInfoAsync(dir)
+		if (!dirInfo.exists) {
+			await FileSystem.makeDirectoryAsync(dir, { intermediates: true })
+		}
+
+		const uri = `${dir}/${filename}`
+		await FileSystem.writeAsStringAsync(uri, content, {
+			encoding: FileSystem.EncodingType.UTF8,
+		})
+		await shareFileUri(uri, 'text/csv')
+	}
+
+	async function handleExportGradesCsv() {
+		if (!repositories) {
+			return
+		}
+
+		try {
+			await shareCsv(await exportGradesCsv(repositories), 'grades.csv')
+		} catch (error) {
+			Alert.alert('Ошибка', toUserErrorMessage(error, 'Не удалось экспортировать оценки'))
+		}
+	}
+
+	async function handleExportAttendanceCsv() {
+		if (!repositories) {
+			return
+		}
+
+		try {
+			await shareCsv(await exportAttendanceCsv(repositories), 'attendance.csv')
+		} catch (error) {
+			Alert.alert(
+				'Ошибка',
+				toUserErrorMessage(error, 'Не удалось экспортировать посещаемость'),
+			)
+		}
+	}
+
+	async function handleExportFocusCsv() {
+		if (!repositories) {
+			return
+		}
+
+		try {
+			await shareCsv(await exportFocusCsv(repositories), 'focus.csv')
+		} catch (error) {
+			Alert.alert('Ошибка', toUserErrorMessage(error, 'Не удалось экспортировать фокус'))
 		}
 	}
 
@@ -126,6 +189,25 @@ export function MoreScreen() {
 				</Pressable>
 				<Pressable onPress={() => router.push('/schedule-import')}>
 					<Text style={styles.link}>Импорт расписания</Text>
+				</Pressable>
+
+				<Text style={styles.sectionTitle}>Данные</Text>
+				<Pressable onPress={() => router.push('/backup-restore')}>
+					<Text style={styles.link}>Резервная копия</Text>
+				</Pressable>
+				<Pressable onPress={() => void handleExportGradesCsv()}>
+					<Text style={styles.link}>Экспорт оценок (CSV)</Text>
+				</Pressable>
+				<Pressable onPress={() => void handleExportAttendanceCsv()}>
+					<Text style={styles.link}>Экспорт посещаемости (CSV)</Text>
+				</Pressable>
+				<Pressable onPress={() => void handleExportFocusCsv()}>
+					<Text style={styles.link}>Экспорт фокуса (CSV)</Text>
+				</Pressable>
+
+				<Text style={styles.sectionTitle}>О приложении</Text>
+				<Pressable onPress={() => router.push('/about')}>
+					<Text style={styles.link}>О приложении</Text>
 				</Pressable>
 			</ScrollView>
 		</ScreenContainer>

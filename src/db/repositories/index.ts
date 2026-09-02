@@ -18,6 +18,7 @@ import { ScheduleImportRepository } from '@/src/db/repositories/schedule-import.
 /** Factory for repository instances bound to one DB connection. */
 export function createRepositories(db: DatabaseConnection) {
 	return {
+		db,
 		appSettings: new AppSettingsRepository(db),
 		studyPeriods: new StudyPeriodRepository(db),
 		subjects: new SubjectRepository(db),

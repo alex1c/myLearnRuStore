@@ -11,6 +11,8 @@ import {
 	wasScheduleExportImported,
 	type ScheduleExportPreview,
 } from '@/src/services/schedule-export.service'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
 
 /** Preview and confirm schedule JSON import. */
 export default function ScheduleImportScreen() {
@@ -72,6 +74,7 @@ export default function ScheduleImportScreen() {
 				activePeriod.id,
 			)
 			await refresh()
+			trackEvent(ANALYTICS_EVENTS.SCHEDULE_IMPORTED)
 			Alert.alert(
 				'Готово',
 				`Добавлено предметов: ${result.subjectsCreated}, занятий: ${result.entriesCreated}`,

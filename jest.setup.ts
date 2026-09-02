@@ -27,4 +27,24 @@ jest.mock('expo-image-picker', () => ({
 	launchImageLibraryAsync: jest.fn(),
 }))
 
+jest.mock('@react-native-async-storage/async-storage', () => ({
+	setItem: jest.fn(async () => undefined),
+	getItem: jest.fn(async () => null),
+	removeItem: jest.fn(async () => undefined),
+}))
+
+jest.mock('@appmetrica/react-native-analytics', () => ({
+	__esModule: true,
+	default: {
+		activate: jest.fn(),
+		reportEvent: jest.fn(),
+	},
+}))
+
+jest.mock('yandex-mobile-ads', () => ({
+	MobileAds: { initialize: jest.fn(async () => undefined) },
+	BannerView: () => null,
+	InterstitialAdLoader: { load: jest.fn() },
+}))
+
 export {}

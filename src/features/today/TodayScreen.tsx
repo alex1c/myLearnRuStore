@@ -29,6 +29,8 @@ import {
 	getLessonTimingStatus,
 } from '@/src/services/today.service'
 import { ASSIGNMENT_TYPE_BADGE } from '@/src/utils/assignment-labels'
+import { AdBanner } from '@/src/components/AdBanner'
+import { YANDEX_BANNER_TODAY_ID } from '@/src/config/ads'
 import { formatMinutesUntil } from '@/src/utils/format'
 import { getCycleBadgeLabel } from '@/src/utils/cycle-labels'
 import { formatDisplayDate, getTodayLocalDate } from '@/src/utils/dates'
@@ -155,6 +157,8 @@ export function TodayScreen() {
 					onOpenAssignment={(id) => router.push(`/assignment-form?id=${id}`)}
 					/>
 				</SectionCard>
+
+				<AdBanner adUnitId={YANDEX_BANNER_TODAY_ID} style={styles.adBanner} />
 			</ScrollView>
 
 			<Pressable
@@ -336,6 +340,10 @@ function AssignmentsPreview({
 const styles = StyleSheet.create({
 	scrollContent: {
 		paddingBottom: 96,
+	},
+	adBanner: {
+		marginTop: 8,
+		marginBottom: 16,
 	},
 	dateLabel: {
 		fontSize: 14,

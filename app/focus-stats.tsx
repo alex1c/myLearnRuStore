@@ -15,6 +15,8 @@ import type { FocusStatsPeriod } from '@/src/services/focus-stats.service'
 import { formatShareFocusStats } from '@/src/services/share/share-formatters.service'
 import { shareText } from '@/src/services/share/share.service'
 import { formatDurationSeconds } from '@/src/utils/duration'
+import { AdBanner } from '@/src/components/AdBanner'
+import { YANDEX_BANNER_FOCUS_ID } from '@/src/config/ads'
 
 const PERIODS: { id: FocusStatsPeriod; label: string }[] = [
 	{ id: 'today', label: 'Сегодня' },
@@ -128,6 +130,7 @@ export default function FocusStatsScreen() {
 				) : (
 					<Text style={styles.empty}>Загрузка…</Text>
 				)}
+				<AdBanner adUnitId={YANDEX_BANNER_FOCUS_ID} style={styles.adBanner} />
 			</ScrollView>
 		</ScreenContainer>
 	)
@@ -217,5 +220,8 @@ const styles = StyleSheet.create({
 		color: '#2563EB',
 		fontSize: 16,
 		textAlign: 'center',
+	},
+	adBanner: {
+		marginTop: 24,
 	},
 })

@@ -15,6 +15,8 @@ import { useAppData } from '@/src/context/AppDataContext'
 import type { UserMode } from '@/src/types/domain'
 import { computeAnchorDateFromCurrentWeek } from '@/src/utils/anchor'
 import { getCycleBadgeLabel } from '@/src/utils/cycle-labels'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
 
 type Step = 'mode' | 'period' | 'cycle'
 
@@ -69,6 +71,10 @@ export default function OnboardingScreen() {
 			}
 
 			await refresh()
+			trackEvent(ANALYTICS_EVENTS.ONBOARDING_COMPLETED, {
+				user_mode: userMode,
+				cycle_length: cycleLength,
+			})
 			router.replace('/(tabs)')
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Не удалось сохранить настройки')

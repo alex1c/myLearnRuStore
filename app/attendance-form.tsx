@@ -6,6 +6,8 @@ import { PrimaryButton } from '@/src/components/ui/FormFields'
 import { useAppData } from '@/src/context/AppDataContext'
 import type { AttendanceStatus } from '@/src/types/domain'
 import { getTodayLocalDate } from '@/src/utils/dates'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
 
 const STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
 	{ value: 'PRESENT', label: 'Был' },
@@ -41,6 +43,9 @@ export default function AttendanceFormScreen() {
 				status,
 				scheduleEntryId: params.scheduleEntryId ?? null,
 				scheduleExceptionId: params.scheduleExceptionId ?? null,
+			})
+			trackEvent(ANALYTICS_EVENTS.ATTENDANCE_MARKED, {
+				attendance_status: status,
 			})
 			await refresh()
 			router.back()

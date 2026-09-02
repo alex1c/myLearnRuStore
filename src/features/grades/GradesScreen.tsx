@@ -6,6 +6,8 @@ import { SubjectPerformanceCard } from '@/src/components/SubjectPerformanceCard'
 import { ScreenContainer } from '@/src/components/ScreenContainer'
 import { useAppData } from '@/src/context/AppDataContext'
 import { loadSubjectPerformanceSummaries } from '@/src/services/performance-data.service'
+import { AdBanner } from '@/src/components/AdBanner'
+import { YANDEX_BANNER_PERFORMANCE_ID } from '@/src/config/ads'
 
 /** Performance tab — subject list with averages and targets. */
 export function GradesScreen() {
@@ -62,6 +64,7 @@ export function GradesScreen() {
 						/>
 					))
 				)}
+				<AdBanner adUnitId={YANDEX_BANNER_PERFORMANCE_ID} style={styles.adBanner} />
 			</ScrollView>
 
 			<Pressable
@@ -78,6 +81,7 @@ export function GradesScreen() {
 
 const styles = StyleSheet.create({
 	scroll: { paddingBottom: 96 },
+	adBanner: { marginTop: 16 },
 	fab: {
 		position: 'absolute',
 		right: 20,

@@ -6,6 +6,14 @@ import type { ScheduleContext } from '@/src/types/schedule'
 import { loadAppBootstrapData } from '@/src/services/schedule-data.service'
 import { reconcileAssignmentReminders } from '@/src/services/assignment-reminder-sync.service'
 import { recoverActiveFocusSession } from '@/src/services/focus-session.service'
+import { initializeAnalytics, trackEvent } from '@/src/services/analytics/analytics.service'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import {
+	initializeMobileAds,
+	registerAppSessionStart,
+} from '@/src/services/ads/ads-runtime.service'
+
+let bootstrapInitialized = false
 
 interface AppDataContextValue {
 	isReady: boolean
@@ -36,6 +44,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
 	const load = React.useCallback(async () => {
 		try {
+			if (!bootstrapInitialized) {
+				initializeAnalytics()
+				await initializeMobileAds()
+				await registerAppSessionStart()
+				trackEvent(ANALYTICS_EVENTS.APP_OPEN)
+				bootstrapInitialized = true
+			}
+
 			const db = await getDatabase()
 			const repositories = createRepositories(db)
 			const data = await loadAppBootstrapData(repositories)

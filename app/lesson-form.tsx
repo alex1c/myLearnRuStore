@@ -18,6 +18,8 @@ import type { ScheduleWeekCycle, Weekday } from '@/src/types/domain'
 import { WEEK_CYCLE_OPTIONS } from '@/src/utils/cycle-labels'
 import { getWeekday } from '@/src/utils/dates'
 import { ValidationError } from '@/src/utils/validation'
+import { ANALYTICS_EVENTS } from '@/src/config/analytics'
+import { trackEvent } from '@/src/services/analytics/analytics.service'
 
 const WEEKDAY_OPTIONS: { value: Weekday; label: string }[] = [
 	{ value: 1, label: 'Понедельник' },
@@ -173,6 +175,7 @@ export default function LessonFormScreen() {
 				await repositories.schedule.update(params.id, payload)
 			} else {
 				await repositories.schedule.create(payload)
+				trackEvent(ANALYTICS_EVENTS.SCHEDULE_LESSON_CREATED)
 			}
 
 			await refresh()

@@ -1,4 +1,10 @@
 import type { Grade, LocalDate, Subject } from '@/src/types/domain'
+import type { ScheduleOccurrence } from '@/src/types/schedule'
+import type { FocusStatsSummary } from '@/src/services/focus-stats.service'
+import { formatGradeAverage } from '@/src/services/grade-calculation.service'
+import { formatDisplayDate, getWeekday } from '@/src/utils/dates'
+import { formatDurationSeconds } from '@/src/utils/duration'
+import { formatWeekRange, formatTimeRange } from '@/src/utils/format'
 
 const WEEKDAY_NAMES = [
 	'Воскресенье',
