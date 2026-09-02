@@ -54,7 +54,7 @@ Principles:
 - Versioned migration system via `schema_migrations`
 - `PRAGMA foreign_keys = ON` on bootstrap
 - Idempotent bootstrap with singleton connection promise (concurrent-open protection)
-- Migration version **2** — assignment reminders + source occurrence date
+- Migration version **3** — grade scale per subject, attendance target, grade-assignment link
 
 ### Tables
 
@@ -70,27 +70,39 @@ Two-week schedules use `cycle_anchor_date` in `app_settings` plus abstract `CYCL
 
 ## Current phase
 
-**Phase 3 — Assignments + Deadlines + Photos + Reminders**
+**Phase 4 — Grades, Forecasts & Attendance**
 
 Implemented:
 
-- Full Assignments tab (filters, grouping, quick complete + undo)
-- Assignment create/edit/delete with types (HOMEWORK, TEST, EXAM, etc.)
-- Create from lesson with `source_schedule_entry_id` + `source_occurrence_date`
-- «К следующему занятию» deadline chip
-- Managed photo storage (up to 5 per assignment, camera/gallery)
-- Local notifications via `NotificationScheduler` adapter
-- Reminder intent persisted in `assignment_reminders` table
-- Today integration (upcoming, overdue, TEST/EXAM «Скоро»)
-- One-off lesson UI (`ADDED` schedule exceptions)
+- Performance tab with subject cards (average, target, recent grades)
+- Subject details: forecast, target progress, history, stats
+- Grade add/edit/delete (FIVE_POINT, TEN_POINT, HUNDRED_POINT)
+- Simple and weighted averages (auto when any weight ≠ 1)
+- «Что будет, если…» prediction for 5-point scale
+- «Сколько нужно до цели» with impossible exact-max handling
+- Student attendance (occurrence + manual), rate and target helpers
+- Grade from TEST/EXAM assignment
+- Migration v3: `subject.grade_scale`, `subject.attendance_target`, `grades.assignment_id`
 
-Not implemented yet (Phase 4+):
+Not implemented yet (Phase 5+):
 
-- Grades analytics and prediction
-- Pomodoro
+- Pomodoro / focus stats
 - Share / backup / ads / analytics
 
-### Assignment lifecycle
+### Grade calculation
+
+- Simple: `sum(values) / count`
+- Weighted: `Σ(value×weight) / Σ(weight)` when any weight ≠ 1
+- Display uses 2 decimal places with comma; calculations use raw numbers
+- Target comparison uses raw values (4.495 < 4.50)
+
+### Attendance semantics
+
+**Rate = PRESENT / (PRESENT + ABSENT)**
+
+`EXCUSED` is shown separately and does not reduce the percentage.
+
+### Assignment lifecycle (Phase 3)
 
 1. Quick add: subject → text → due date → save
 2. Optional: time, type, priority, notes, photos, reminder

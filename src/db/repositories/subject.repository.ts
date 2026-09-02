@@ -1,7 +1,8 @@
 import type { DatabaseConnection } from '@/src/db/types'
-import type { Subject } from '@/src/types/domain'
+import type { GradeScale, Subject } from '@/src/types/domain'
 import { createId, nowTimestamp } from '@/src/utils/id'
 import { validateSubjectName } from '@/src/utils/validation'
+import { validateAttendanceTarget, validateTargetForScale } from '@/src/utils/grade-labels'
 
 interface SubjectRow {
 	id: string
@@ -12,6 +13,8 @@ interface SubjectRow {
 	room_default: string | null
 	teacher_id: string | null
 	target_grade: number | null
+	grade_scale: string
+	attendance_target: number | null
 	sort_order: number
 	is_archived: number
 	created_at: string
@@ -28,6 +31,8 @@ function mapRow(row: SubjectRow): Subject {
 		roomDefault: row.room_default,
 		teacherId: row.teacher_id,
 		targetGrade: row.target_grade,
+		gradeScale: row.grade_scale as GradeScale,
+		attendanceTarget: row.attendance_target,
 		sortOrder: row.sort_order,
 		isArchived: row.is_archived === 1,
 		createdAt: row.created_at,
@@ -43,6 +48,16 @@ export interface CreateSubjectInput {
 	roomDefault?: string | null
 	teacherId?: string | null
 	sortOrder?: number
+	gradeScale?: GradeScale
+}
+
+export interface UpdateSubjectInput {
+	name?: string
+	shortName?: string | null
+	color?: string | null
+	targetGrade?: number | null
+	gradeScale?: GradeScale
+	attendanceTarget?: number | null
 }
 
 export class SubjectRepository {
@@ -70,6 +85,8 @@ export class SubjectRepository {
 			roomDefault: input.roomDefault ?? null,
 			teacherId: input.teacherId ?? null,
 			targetGrade: null,
+			gradeScale: input.gradeScale ?? 'FIVE_POINT',
+			attendanceTarget: null,
 			sortOrder: input.sortOrder ?? 0,
 			isArchived: false,
 			createdAt: timestamp,
@@ -79,8 +96,9 @@ export class SubjectRepository {
 		await this.db.runAsync(
 			`INSERT INTO subjects (
 				id, study_period_id, name, short_name, color, room_default,
-				teacher_id, target_grade, sort_order, is_archived, created_at, updated_at
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				teacher_id, target_grade, grade_scale, attendance_target,
+				sort_order, is_archived, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				subject.id,
 				subject.studyPeriodId,
@@ -90,6 +108,8 @@ export class SubjectRepository {
 				subject.roomDefault,
 				subject.teacherId,
 				subject.targetGrade,
+				subject.gradeScale,
+				subject.attendanceTarget,
 				subject.sortOrder,
 				0,
 				subject.createdAt,
@@ -106,5 +126,59 @@ export class SubjectRepository {
 			[id],
 		)
 		return row ? mapRow(row) : null
+	}
+
+	async update(id: string, input: UpdateSubjectInput): Promise<Subject> {
+		const existing = await this.getById(id)
+		if (!existing) {
+			throw new Error('Subject not found')
+		}
+
+		const gradeScale = input.gradeScale ?? existing.gradeScale
+		let targetGrade = existing.targetGrade
+		if (input.targetGrade !== undefined) {
+			targetGrade =
+				input.targetGrade === null
+					? null
+					: validateTargetForScale(input.targetGrade, gradeScale)
+		}
+
+		let attendanceTarget = existing.attendanceTarget
+		if (input.attendanceTarget !== undefined) {
+			attendanceTarget =
+				input.attendanceTarget === null
+					? null
+					: validateAttendanceTarget(input.attendanceTarget)
+		}
+
+		const updated: Subject = {
+			...existing,
+			name: input.name ? validateSubjectName(input.name) : existing.name,
+			shortName: input.shortName !== undefined ? input.shortName : existing.shortName,
+			color: input.color !== undefined ? input.color : existing.color,
+			targetGrade,
+			gradeScale,
+			attendanceTarget,
+			updatedAt: nowTimestamp(),
+		}
+
+		await this.db.runAsync(
+			`UPDATE subjects SET
+				name = ?, short_name = ?, color = ?, target_grade = ?,
+				grade_scale = ?, attendance_target = ?, updated_at = ?
+			 WHERE id = ?`,
+			[
+				updated.name,
+				updated.shortName,
+				updated.color,
+				updated.targetGrade,
+				updated.gradeScale,
+				updated.attendanceTarget,
+				updated.updatedAt,
+				id,
+			],
+		)
+
+		return updated
 	}
 }

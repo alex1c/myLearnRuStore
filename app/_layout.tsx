@@ -91,6 +91,15 @@ function RootNavigator() {
 				name="one-off-lesson-form"
 				options={{ presentation: 'modal', title: 'Занятие на день' }}
 			/>
+			<Stack.Screen
+				name="grade-form"
+				options={{ presentation: 'modal', title: 'Оценка' }}
+			/>
+			<Stack.Screen name="subject-performance" options={{ title: 'Предмет' }} />
+			<Stack.Screen
+				name="attendance-form"
+				options={{ presentation: 'modal', title: 'Посещаемость' }}
+			/>
 			<Stack.Screen name="subjects" options={{ title: 'Предметы' }} />
 			<Stack.Screen name="teachers" options={{ title: 'Преподаватели' }} />
 		</Stack>

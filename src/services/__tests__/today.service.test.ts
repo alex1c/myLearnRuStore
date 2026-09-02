@@ -14,6 +14,8 @@ const subject: Subject = {
 	roomDefault: '314',
 	teacherId: 't-1',
 	targetGrade: null,
+	gradeScale: 'FIVE_POINT' as const,
+	attendanceTarget: null,
 	sortOrder: 0,
 	isArchived: false,
 	createdAt: '2025-01-01T00:00:00.000Z',

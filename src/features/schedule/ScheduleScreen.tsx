@@ -22,6 +22,7 @@ import { addDays, daysBetween, getTodayLocalDate, startOfWeek } from '@/src/util
 export function ScheduleScreen() {
 	const router = useRouter()
 	const { scheduleContext, settings, refreshKey } = useAppData()
+	const isStudent = settings?.userMode !== 'SCHOOL'
 	const today = getTodayLocalDate()
 	const [weekStart, setWeekStart] = React.useState(startOfWeek(today, 1))
 	const [selectedDate, setSelectedDate] = React.useState(today)
@@ -45,13 +46,16 @@ export function ScheduleScreen() {
 		? getCycleIndexForDate(selectedDate, scheduleContext)
 		: 0
 
-	function showLessonActions(entryId: string, occurrenceDate: string) {
+	function showLessonActions(
+		entryId: string,
+		occurrenceDate: string,
+		subjectId: string,
+	) {
 		const options = [
 			'Редактировать',
 			'Дублировать',
 			'Добавить задание',
 			'Изменить только этот день',
-			'Отмена',
 		]
 		const handlers = [
 			() => router.push(`/lesson-form?id=${entryId}`),
@@ -63,11 +67,23 @@ export function ScheduleScreen() {
 			() => router.push(`/lesson-exception?entryId=${entryId}&date=${occurrenceDate}`),
 		]
 
+		if (isStudent) {
+			options.push('Отметить посещаемость')
+			handlers.push(() =>
+				router.push(
+					`/attendance-form?subjectId=${subjectId}&scheduleEntryId=${entryId}&date=${occurrenceDate}`,
+				),
+			)
+		}
+
+		options.push('Отмена')
+		const cancelIndex = options.length - 1
+
 		if (Platform.OS === 'ios') {
 			ActionSheetIOS.showActionSheetWithOptions(
-				{ options, cancelButtonIndex: 4 },
+				{ options, cancelButtonIndex: cancelIndex },
 				(index) => {
-					if (index !== undefined && index < 4) {
+					if (index !== undefined && index < handlers.length) {
 						handlers[index]()
 					}
 				},
@@ -75,13 +91,17 @@ export function ScheduleScreen() {
 			return
 		}
 
-		Alert.alert('Занятие', undefined, [
-			{ text: 'Редактировать', onPress: handlers[0] },
-			{ text: 'Дублировать', onPress: handlers[1] },
-			{ text: 'Добавить задание', onPress: handlers[2] },
-			{ text: 'Изменить только этот день', onPress: handlers[3] },
-			{ text: 'Отмена', style: 'cancel' },
-		])
+		Alert.alert(
+			'Занятие',
+			undefined,
+			[
+				...handlers.map((handler, index) => ({
+					text: options[index],
+					onPress: handler,
+				})),
+				{ text: 'Отмена', style: 'cancel' as const },
+			],
+		)
 	}
 
 	function showAddLessonMenu() {
@@ -162,7 +182,11 @@ export function ScheduleScreen() {
 							occurrence={lesson}
 							onPress={() => {
 								if (lesson.scheduleEntryId) {
-									showLessonActions(lesson.scheduleEntryId, selectedDate)
+									showLessonActions(
+										lesson.scheduleEntryId,
+										selectedDate,
+										lesson.subjectId,
+									)
 								}
 							}}
 						/>

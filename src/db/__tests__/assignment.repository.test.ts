@@ -119,10 +119,27 @@ describe('assignment repository', () => {
 			endDate: '2027-05-31',
 			isActive: true,
 		})
-		const subject = await reposV1.subjects.create({
-			studyPeriodId: period.id,
-			name: 'Physics',
-		})
+		const subjectId = 'legacy-subject'
+		await connection.runAsync(
+			`INSERT INTO subjects (
+				id, study_period_id, name, short_name, color, room_default,
+				teacher_id, target_grade, sort_order, is_archived, created_at, updated_at
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			[
+				subjectId,
+				period.id,
+				'Physics',
+				null,
+				null,
+				null,
+				null,
+				null,
+				0,
+				0,
+				nowTimestamp(),
+				nowTimestamp(),
+			],
+		)
 		await connection.runAsync(
 			`INSERT INTO assignments (
 				id, subject_id, title, description, due_date, due_time,
@@ -131,7 +148,7 @@ describe('assignment repository', () => {
 			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			[
 				'legacy-assignment',
-				subject.id,
+				subjectId,
 				'Lab report',
 				null,
 				'2026-10-01',
@@ -148,7 +165,7 @@ describe('assignment repository', () => {
 		)
 
 		await runMigrations(connection)
-		expect(await getAppliedMigrationVersions(connection)).toEqual([1, 2])
+		expect(await getAppliedMigrationVersions(connection)).toEqual([1, 2, 3])
 
 		const reposV2 = createRepositories(connection)
 		const list = await reposV2.assignments.listAll()

@@ -1,5 +1,7 @@
 import type { DatabaseConnection } from '@/src/db/types'
 import { AppSettingsRepository } from '@/src/db/repositories/app-settings.repository'
+import { AttendanceRepository } from '@/src/db/repositories/attendance.repository'
+import { GradeRepository } from '@/src/db/repositories/grade.repository'
 import { AssignmentRepository } from '@/src/db/repositories/assignment.repository'
 import { AssignmentPhotoRepository } from '@/src/db/repositories/assignment-photo.repository'
 import { AssignmentReminderRepository } from '@/src/db/repositories/assignment-reminder.repository'
@@ -23,6 +25,8 @@ export function createRepositories(db: DatabaseConnection) {
 		assignments: new AssignmentRepository(db),
 		assignmentPhotos: new AssignmentPhotoRepository(db),
 		assignmentReminders: new AssignmentReminderRepository(db),
+		grades: new GradeRepository(db),
+		attendance: new AttendanceRepository(db),
 	}
 }
 

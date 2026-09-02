@@ -102,6 +102,10 @@ export interface Subject {
 	roomDefault: string | null
 	teacherId: string | null
 	targetGrade: number | null
+	/** Default grading scale for new grades in this subject. */
+	gradeScale: GradeScale
+	/** Minimum attendance percentage target (0–100), student mode only. */
+	attendanceTarget: number | null
 	sortOrder: number
 	isArchived: boolean
 	createdAt: Timestamp
@@ -194,6 +198,7 @@ export interface Grade {
 	gradeScale: GradeScale
 	date: LocalDate
 	note: string | null
+	assignmentId: string | null
 	createdAt: Timestamp
 	updatedAt: Timestamp
 }

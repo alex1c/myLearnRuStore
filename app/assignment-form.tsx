@@ -515,6 +515,21 @@ export default function AssignmentFormScreen() {
 						disabled={isSaving}
 					/>
 
+					{isEdit &&
+					subjectId &&
+					['TEST', 'EXAM', 'LAB', 'PROJECT'].includes(assignmentType) ? (
+						<Pressable
+							onPress={() =>
+								router.push(
+									`/grade-form?subjectId=${subjectId}&assignmentId=${params.id}&date=${dueDate}&gradeType=${assignmentType}`,
+								)
+							}
+							style={styles.addGradeButton}
+						>
+							<Text style={styles.addGradeText}>Добавить оценку</Text>
+						</Pressable>
+					) : null}
+
 					{isEdit ? (
 						<Pressable onPress={() => void handleDelete()} style={styles.deleteButton}>
 							<Text style={styles.deleteText}>Удалить задание</Text>
@@ -631,6 +646,18 @@ const styles = StyleSheet.create({
 		marginTop: 16,
 		alignItems: 'center',
 		padding: 12,
+	},
+	addGradeButton: {
+		marginTop: 12,
+		alignItems: 'center',
+		padding: 12,
+		backgroundColor: '#EEF2FF',
+		borderRadius: 10,
+	},
+	addGradeText: {
+		color: '#4338CA',
+		fontSize: 15,
+		fontWeight: '600',
 	},
 	deleteText: {
 		color: '#DC2626',
