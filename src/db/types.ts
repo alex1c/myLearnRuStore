@@ -19,4 +19,4 @@ export interface Migration {
 }
 
 export const DATABASE_NAME = 'mylearn.db'
-export const LATEST_MIGRATION_VERSION = 1
+export const LATEST_MIGRATION_VERSION = 2

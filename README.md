@@ -54,7 +54,7 @@ Principles:
 - Versioned migration system via `schema_migrations`
 - `PRAGMA foreign_keys = ON` on bootstrap
 - Idempotent bootstrap with singleton connection promise (concurrent-open protection)
-- Migration version **1** — initial schema
+- Migration version **2** — assignment reminders + source occurrence date
 
 ### Tables
 
@@ -70,28 +70,56 @@ Two-week schedules use `cycle_anchor_date` in `app_settings` plus abstract `CYCL
 
 ## Current phase
 
-**Phase 2 — Schedule + Today**
+**Phase 3 — Assignments + Deadlines + Photos + Reminders**
 
 Implemented:
 
-- Onboarding (user mode, study period, week type, anchor setup)
-- Weekly schedule UI with day switching and cycle badge
-- Lesson create/edit/delete/duplicate
-- Schedule exceptions (cancel, override time/teacher/room for one day)
-- One-off ADDED lessons on holidays
-- Occurrence service (`getScheduleForDate`)
-- Today dashboard (next lesson, ongoing, today's list, cycle badge)
-- Teachers/subjects reference lists in «Ещё»
-- `AppDataContext` refresh after mutations
+- Full Assignments tab (filters, grouping, quick complete + undo)
+- Assignment create/edit/delete with types (HOMEWORK, TEST, EXAM, etc.)
+- Create from lesson with `source_schedule_entry_id` + `source_occurrence_date`
+- «К следующему занятию» deadline chip
+- Managed photo storage (up to 5 per assignment, camera/gallery)
+- Local notifications via `NotificationScheduler` adapter
+- Reminder intent persisted in `assignment_reminders` table
+- Today integration (upcoming, overdue, TEST/EXAM «Скоро»)
+- One-off lesson UI (`ADDED` schedule exceptions)
 
-Not implemented yet (later phases):
+Not implemented yet (Phase 4+):
 
-- Full assignments UI
-- Grades analytics
+- Grades analytics and prediction
 - Pomodoro
 - Share / backup / ads / analytics
 
-### Occurrence service
+### Assignment lifecycle
+
+1. Quick add: subject → text → due date → save
+2. Optional: time, type, priority, notes, photos, reminder
+3. Complete toggles status + cancels notification
+4. Undo restores status + reschedules future reminders
+5. Delete removes DB rows + best-effort photo cleanup
+
+### Deadline semantics
+
+- `due_time = NULL` → deadline is end of local calendar day
+- `due_time` set → overdue after that local time
+- Domain helpers: `isAssignmentOverdue()`, `getAssignmentDeadlineState()`
+
+### Notification model
+
+- User intent stored in `assignment_reminders` (kind, relative/absolute config)
+- Platform `notification_id` is ephemeral — reconciled on bootstrap
+- Permission requested only when user enables a reminder
+- Tap opens assignment via `assignmentId` payload
+
+### Photo storage
+
+Photos copied to `documentDirectory/assignment-photos/<assignmentId>/<uuid>.jpg` via `expo-file-system/legacy`. External `content://` URIs are never persisted.
+
+### Source occurrence
+
+`assignments.source_occurrence_date` stores the lesson date when created from a specific occurrence (migration v2).
+
+### Occurrence service (Phase 2)
 
 `src/services/occurrence.service.ts` resolves runtime lessons from:
 

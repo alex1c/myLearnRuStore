@@ -4,6 +4,7 @@ import { createRepositories, type Repositories } from '@/src/db/repositories'
 import type { AppSettings, StudyPeriod } from '@/src/types/domain'
 import type { ScheduleContext } from '@/src/types/schedule'
 import { loadAppBootstrapData } from '@/src/services/schedule-data.service'
+import { reconcileAssignmentReminders } from '@/src/services/assignment-reminder-sync.service'
 
 interface AppDataContextValue {
 	isReady: boolean
@@ -37,6 +38,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 			const db = await getDatabase()
 			const repositories = createRepositories(db)
 			const data = await loadAppBootstrapData(repositories)
+			await reconcileAssignmentReminders(repositories)
 
 			setState((prev) => ({
 				isReady: true,

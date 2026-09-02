@@ -10,20 +10,29 @@ import {
 	View,
 } from 'react-native'
 import { useRouter } from 'expo-router'
+import { AssignmentCard } from '@/src/components/AssignmentCard'
 import { EmptyState } from '@/src/components/EmptyState'
 import { LessonCard } from '@/src/components/LessonCard'
 import { ScreenContainer } from '@/src/components/ScreenContainer'
 import { SectionCard } from '@/src/components/SectionCard'
 import { useAppData } from '@/src/context/AppDataContext'
+import {
+	countOverdue,
+	formatAssignmentDueLabel,
+	pickTodayAssignments,
+	pickUpcomingTestsExams,
+} from '@/src/services/assignment-query.service'
 import { getCycleIndexForDate, getScheduleForDate } from '@/src/services/occurrence.service'
 import {
 	formatNextFutureDetailed,
 	getTodayLessonState,
 	getLessonTimingStatus,
 } from '@/src/services/today.service'
+import { ASSIGNMENT_TYPE_BADGE } from '@/src/utils/assignment-labels'
 import { formatMinutesUntil } from '@/src/utils/format'
 import { getCycleBadgeLabel } from '@/src/utils/cycle-labels'
 import { formatDisplayDate, getTodayLocalDate } from '@/src/utils/dates'
+import type { AssignmentListItem } from '@/src/types/assignment'
 
 /** Today dashboard with next lesson, daily schedule, and assignments preview. */
 export function TodayScreen() {
@@ -53,13 +62,18 @@ export function TodayScreen() {
 			: null
 
 	function showQuickAdd() {
-		const options = ['Занятие', 'Предмет', 'Отмена']
+		const options = ['Занятие', 'Задание', 'Предмет', 'Отмена']
+		const handlers = [
+			() => router.push(`/lesson-form?date=${today}`),
+			() => router.push('/assignment-form'),
+		]
+
 		if (Platform.OS === 'ios') {
 			ActionSheetIOS.showActionSheetWithOptions(
-				{ options, cancelButtonIndex: 2 },
+				{ options, cancelButtonIndex: 3 },
 				(index) => {
-					if (index === 0) {
-						router.push(`/lesson-form?date=${today}`)
+					if (index !== undefined && index < 2) {
+						handlers[index]()
 					}
 				},
 			)
@@ -67,7 +81,8 @@ export function TodayScreen() {
 		}
 
 		Alert.alert('Добавить', undefined, [
-			{ text: 'Занятие', onPress: () => router.push(`/lesson-form?date=${today}`) },
+			{ text: 'Занятие', onPress: handlers[0] },
+			{ text: 'Задание', onPress: handlers[1] },
 			{ text: 'Отмена', style: 'cancel' },
 		])
 	}
@@ -114,7 +129,9 @@ export function TodayScreen() {
 									}
 									onPress={() => {
 										if (lesson.scheduleEntryId) {
-											router.push(`/lesson-form?id=${lesson.scheduleEntryId}`)
+											router.push(
+												`/assignment-form?scheduleEntryId=${lesson.scheduleEntryId}&occurrenceDate=${today}&subjectId=${lesson.subjectId}`,
+											)
 										}
 									}}
 								/>
@@ -123,8 +140,14 @@ export function TodayScreen() {
 					)}
 				</SectionCard>
 
-				<SectionCard title="Ближайшие задания">
-					<AssignmentsPreview repositories={repositories} isReady={isReady} />
+				<SectionCard title="Задания">
+					<AssignmentsPreview
+					repositories={repositories}
+					isReady={isReady}
+					refreshKey={refreshKey}
+					onViewAll={() => router.push('/(tabs)/assignments')}
+					onOpenAssignment={(id) => router.push(`/assignment-form?id=${id}`)}
+					/>
 				</SectionCard>
 			</ScrollView>
 
@@ -225,13 +248,17 @@ function NextLessonSection({
 function AssignmentsPreview({
 	repositories,
 	isReady,
+	refreshKey,
+	onViewAll,
+	onOpenAssignment,
 }: {
 	repositories: ReturnType<typeof import('@/src/context/AppDataContext').useAppData>['repositories']
 	isReady: boolean
+	refreshKey: number
+	onViewAll: () => void
+	onOpenAssignment: (id: string) => void
 }) {
-	const [items, setItems] = React.useState<
-		Awaited<ReturnType<NonNullable<typeof repositories>['assignments']['listUpcoming']>>
-	>([])
+	const [items, setItems] = React.useState<AssignmentListItem[]>([])
 
 	React.useEffect(() => {
 		if (!repositories) {
@@ -239,7 +266,7 @@ function AssignmentsPreview({
 		}
 
 		let mounted = true
-		void repositories.assignments.listUpcoming(5).then((result) => {
+		void repositories.assignments.listAll().then((result) => {
 			if (mounted) {
 				setItems(result)
 			}
@@ -247,20 +274,55 @@ function AssignmentsPreview({
 		return () => {
 			mounted = false
 		}
-	}, [repositories, isReady])
+	}, [repositories, isReady, refreshKey])
 
-	if (items.length === 0) {
-		return <EmptyState title="Заданий пока нет" />
-	}
+	const overdueCount = countOverdue(items)
+	const preview = pickTodayAssignments(items, 5)
+	const upcomingTests = pickUpcomingTestsExams(items)
 
 	return (
-		<View style={styles.assignmentsList}>
-			{items.map((item) => (
-				<View key={item.id} style={styles.assignmentRow}>
-					<Text style={styles.assignmentTitle}>{item.title}</Text>
-					<Text style={styles.assignmentMeta}>{item.dueDate}</Text>
+		<View>
+			{overdueCount > 0 ? (
+				<Text style={styles.overdueBanner}>Просрочено: {overdueCount}</Text>
+			) : null}
+
+			{upcomingTests.length > 0 ? (
+				<View style={styles.soonSection}>
+					<Text style={styles.soonTitle}>Скоро</Text>
+					{upcomingTests.map((item) => (
+						<Pressable
+							key={item.id}
+							onPress={() => onOpenAssignment(item.id)}
+							style={styles.soonRow}
+						>
+							<Text style={styles.soonSubject}>
+								{ASSIGNMENT_TYPE_BADGE[item.assignmentType]} по {item.subjectName}
+							</Text>
+							<Text style={styles.soonMeta}>
+								{formatAssignmentDueLabel(item)}
+							</Text>
+						</Pressable>
+					))}
 				</View>
-			))}
+			) : null}
+
+			<Text style={styles.sectionInlineTitle}>Ближайшие</Text>
+
+			{preview.length === 0 ? (
+				<EmptyState title="На ближайшее время заданий нет" />
+			) : (
+				preview.map((item) => (
+					<AssignmentCard
+						key={item.id}
+						item={item}
+						onPress={() => onOpenAssignment(item.id)}
+					/>
+				))
+			)}
+
+			<Pressable onPress={onViewAll} style={styles.viewAll}>
+				<Text style={styles.viewAllText}>Все задания</Text>
+			</Pressable>
 		</View>
 	)
 }
@@ -318,19 +380,47 @@ const styles = StyleSheet.create({
 		fontWeight: '600',
 		marginVertical: 4,
 	},
-	assignmentsList: {
-		gap: 8,
+	overdueBanner: {
+		fontSize: 14,
+		color: '#DC2626',
+		fontWeight: '600',
+		marginBottom: 8,
 	},
-	assignmentRow: {
-		paddingVertical: 4,
+	soonSection: {
+		marginBottom: 12,
 	},
-	assignmentTitle: {
+	soonTitle: {
 		fontSize: 15,
+		fontWeight: '700',
+		color: '#334155',
+		marginBottom: 6,
+	},
+	soonRow: {
+		paddingVertical: 6,
+	},
+	soonSubject: {
+		fontSize: 15,
+		fontWeight: '600',
 		color: '#0F172A',
 	},
-	assignmentMeta: {
+	soonMeta: {
 		fontSize: 13,
 		color: '#64748B',
+	},
+	sectionInlineTitle: {
+		fontSize: 15,
+		fontWeight: '700',
+		color: '#334155',
+		marginBottom: 8,
+	},
+	viewAll: {
+		marginTop: 8,
+		paddingVertical: 8,
+	},
+	viewAllText: {
+		fontSize: 14,
+		color: '#2563EB',
+		fontWeight: '600',
 	},
 	fab: {
 		position: 'absolute',

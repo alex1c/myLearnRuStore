@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import 'react-native-reanimated'
 import { AppDataProvider, useAppData } from '@/src/context/AppDataContext'
+import { useNotificationNavigation } from '@/src/hooks/useNotificationNavigation'
 
 export {
 	ErrorBoundary,
@@ -50,6 +51,7 @@ export default function RootLayout() {
 function RootNavigator() {
 	const { isReady, isOnboarded } = useAppData()
 	const segments = useSegments()
+	useNotificationNavigation()
 
 	if (!isReady) {
 		return (
@@ -80,6 +82,14 @@ function RootNavigator() {
 			<Stack.Screen
 				name="lesson-exception"
 				options={{ presentation: 'modal', title: 'Исключение' }}
+			/>
+			<Stack.Screen
+				name="assignment-form"
+				options={{ presentation: 'modal', title: 'Задание' }}
+			/>
+			<Stack.Screen
+				name="one-off-lesson-form"
+				options={{ presentation: 'modal', title: 'Занятие на день' }}
 			/>
 			<Stack.Screen name="subjects" options={{ title: 'Предметы' }} />
 			<Stack.Screen name="teachers" options={{ title: 'Преподаватели' }} />

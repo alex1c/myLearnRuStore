@@ -29,6 +29,17 @@ export type AssignmentPriority = 'LOW' | 'NORMAL' | 'HIGH'
 
 export type AssignmentStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
 
+/** How a reminder should fire relative to the assignment deadline. */
+export type ReminderKind =
+	| 'NONE'
+	| 'RELATIVE'
+	| 'MORNING_OF_DUE'
+	| 'EVENING_BEFORE'
+	| 'DAY_BEFORE'
+	| 'CUSTOM_ABSOLUTE'
+
+export type DeadlineState = 'UPCOMING' | 'DUE_TODAY' | 'OVERDUE' | 'COMPLETED'
+
 export type ScheduleExceptionType =
 	| 'CANCELLED'
 	| 'RESCHEDULED'
@@ -144,6 +155,8 @@ export interface Assignment {
 	status: AssignmentStatus
 	assignmentType: AssignmentType
 	sourceScheduleEntryId: string | null
+	/** Local date of the lesson occurrence that spawned this assignment. */
+	sourceOccurrenceDate: LocalDate | null
 	completedAt: Timestamp | null
 	notes: string | null
 	createdAt: Timestamp
@@ -155,6 +168,21 @@ export interface AssignmentPhoto {
 	assignmentId: string
 	localUri: string
 	createdAt: Timestamp
+}
+
+/** Persisted reminder intent — platform notification IDs are ephemeral. */
+export interface AssignmentReminder {
+	id: string
+	assignmentId: string
+	enabled: boolean
+	reminderKind: ReminderKind
+	relativeMinutes: number | null
+	absoluteTime: ClockTime | null
+	absoluteDayOffset: number
+	scheduledAt: Timestamp | null
+	notificationId: string | null
+	createdAt: Timestamp
+	updatedAt: Timestamp
 }
 
 export interface Grade {

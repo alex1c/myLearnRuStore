@@ -1,6 +1,8 @@
 import type { DatabaseConnection } from '@/src/db/types'
 import { AppSettingsRepository } from '@/src/db/repositories/app-settings.repository'
 import { AssignmentRepository } from '@/src/db/repositories/assignment.repository'
+import { AssignmentPhotoRepository } from '@/src/db/repositories/assignment-photo.repository'
+import { AssignmentReminderRepository } from '@/src/db/repositories/assignment-reminder.repository'
 import { HolidayRepository } from '@/src/db/repositories/holiday.repository'
 import { ScheduleExceptionRepository } from '@/src/db/repositories/schedule-exception.repository'
 import { ScheduleRepository } from '@/src/db/repositories/schedule.repository'
@@ -19,6 +21,8 @@ export function createRepositories(db: DatabaseConnection) {
 		scheduleExceptions: new ScheduleExceptionRepository(db),
 		holidays: new HolidayRepository(db),
 		assignments: new AssignmentRepository(db),
+		assignmentPhotos: new AssignmentPhotoRepository(db),
+		assignmentReminders: new AssignmentReminderRepository(db),
 	}
 }
 

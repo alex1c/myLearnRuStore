@@ -214,7 +214,6 @@ export function formatDisplayDate(date: LocalDate): string {
 }
 
 /** Current local calendar date as YYYY-MM-DD. */
-export function getTodayLocalDate(): LocalDate {
-	const now = new Date()
+export function getTodayLocalDate(now: Date = new Date()): LocalDate {
 	return formatLocalDate(now.getFullYear(), now.getMonth() + 1, now.getDate())
 }

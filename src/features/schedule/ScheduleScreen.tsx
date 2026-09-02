@@ -45,19 +45,29 @@ export function ScheduleScreen() {
 		? getCycleIndexForDate(selectedDate, scheduleContext)
 		: 0
 
-	function showLessonActions(entryId: string) {
-		const options = ['Редактировать', 'Дублировать', 'Изменить только этот день', 'Отмена']
+	function showLessonActions(entryId: string, occurrenceDate: string) {
+		const options = [
+			'Редактировать',
+			'Дублировать',
+			'Добавить задание',
+			'Изменить только этот день',
+			'Отмена',
+		]
 		const handlers = [
 			() => router.push(`/lesson-form?id=${entryId}`),
 			() => router.push(`/lesson-form?id=${entryId}&duplicate=1`),
-			() => router.push(`/lesson-exception?entryId=${entryId}&date=${selectedDate}`),
+			() =>
+				router.push(
+					`/assignment-form?scheduleEntryId=${entryId}&occurrenceDate=${occurrenceDate}`,
+				),
+			() => router.push(`/lesson-exception?entryId=${entryId}&date=${occurrenceDate}`),
 		]
 
 		if (Platform.OS === 'ios') {
 			ActionSheetIOS.showActionSheetWithOptions(
-				{ options, cancelButtonIndex: 3 },
+				{ options, cancelButtonIndex: 4 },
 				(index) => {
-					if (index !== undefined && index < 3) {
+					if (index !== undefined && index < 4) {
 						handlers[index]()
 					}
 				},
@@ -68,7 +78,34 @@ export function ScheduleScreen() {
 		Alert.alert('Занятие', undefined, [
 			{ text: 'Редактировать', onPress: handlers[0] },
 			{ text: 'Дублировать', onPress: handlers[1] },
-			{ text: 'Изменить только этот день', onPress: handlers[2] },
+			{ text: 'Добавить задание', onPress: handlers[2] },
+			{ text: 'Изменить только этот день', onPress: handlers[3] },
+			{ text: 'Отмена', style: 'cancel' },
+		])
+	}
+
+	function showAddLessonMenu() {
+		const options = ['Регулярное занятие', 'Только на этот день', 'Отмена']
+		const handlers = [
+			() => router.push(`/lesson-form?date=${selectedDate}`),
+			() => router.push(`/one-off-lesson-form?date=${selectedDate}`),
+		]
+
+		if (Platform.OS === 'ios') {
+			ActionSheetIOS.showActionSheetWithOptions(
+				{ options, cancelButtonIndex: 2 },
+				(index) => {
+					if (index !== undefined && index < 2) {
+						handlers[index]()
+					}
+				},
+			)
+			return
+		}
+
+		Alert.alert('Добавить занятие', undefined, [
+			{ text: 'Регулярное занятие', onPress: handlers[0] },
+			{ text: 'Только на этот день', onPress: handlers[1] },
 			{ text: 'Отмена', style: 'cancel' },
 		])
 	}
@@ -116,9 +153,7 @@ export function ScheduleScreen() {
 						title="Занятий нет"
 						description="Можно добавить занятие или выбрать другой день."
 						actionLabel="Добавить занятие"
-						onActionPress={() =>
-							router.push(`/lesson-form?date=${selectedDate}&weekday=${selectedDate}`)
-						}
+						onActionPress={showAddLessonMenu}
 					/>
 				) : (
 					lessons.map((lesson) => (
@@ -127,7 +162,7 @@ export function ScheduleScreen() {
 							occurrence={lesson}
 							onPress={() => {
 								if (lesson.scheduleEntryId) {
-									showLessonActions(lesson.scheduleEntryId)
+									showLessonActions(lesson.scheduleEntryId, selectedDate)
 								}
 							}}
 						/>
@@ -137,7 +172,7 @@ export function ScheduleScreen() {
 
 			<Pressable
 				style={styles.fab}
-				onPress={() => router.push(`/lesson-form?date=${selectedDate}`)}
+				onPress={showAddLessonMenu}
 				accessibilityRole="button"
 				accessibilityLabel="Добавить занятие"
 			>
