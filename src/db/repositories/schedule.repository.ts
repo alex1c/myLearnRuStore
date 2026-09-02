@@ -63,6 +63,89 @@ export class ScheduleRepository {
 		return rows.map(mapRow)
 	}
 
+	async getById(id: string): Promise<ScheduleEntry | null> {
+		const row = await this.db.getFirstAsync<ScheduleEntryRow>(
+			'SELECT * FROM schedule_entries WHERE id = ?',
+			[id],
+		)
+		return row ? mapRow(row) : null
+	}
+
+	async hasCycleSpecificEntries(studyPeriodId: string): Promise<boolean> {
+		const row = await this.db.getFirstAsync<{ count: number }>(
+			`SELECT COUNT(*) as count FROM schedule_entries
+			 WHERE study_period_id = ? AND week_cycle IN ('CYCLE_0', 'CYCLE_1')`,
+			[studyPeriodId],
+		)
+		return (row?.count ?? 0) > 0
+	}
+
+	async update(
+		id: string,
+		input: Partial<CreateScheduleEntryInput>,
+	): Promise<ScheduleEntry> {
+		const existing = await this.getById(id)
+		if (!existing) {
+			throw new Error('Schedule entry not found')
+		}
+
+		const startTime = input.startTime
+			? validateClockTime(input.startTime, 'startTime')
+			: existing.startTime
+		const endTime = input.endTime
+			? validateClockTime(input.endTime, 'endTime')
+			: existing.endTime
+		validateTimeRange(startTime, endTime)
+
+		if (input.subjectId && input.studyPeriodId) {
+			const subject = await this.db.getFirstAsync<{ study_period_id: string }>(
+				'SELECT study_period_id FROM subjects WHERE id = ?',
+				[input.subjectId],
+			)
+			if (!subject || subject.study_period_id !== input.studyPeriodId) {
+				throw new Error('Schedule subject must belong to the study period')
+			}
+		}
+
+		const updated: ScheduleEntry = {
+			...existing,
+			subjectId: input.subjectId ?? existing.subjectId,
+			teacherId: input.teacherId !== undefined ? input.teacherId : existing.teacherId,
+			room: input.room !== undefined ? input.room : existing.room,
+			weekday: input.weekday ?? existing.weekday,
+			startTime,
+			endTime,
+			lessonType: input.lessonType !== undefined ? input.lessonType : existing.lessonType,
+			weekCycle: input.weekCycle ?? existing.weekCycle,
+			updatedAt: nowTimestamp(),
+		}
+
+		await this.db.runAsync(
+			`UPDATE schedule_entries SET
+				subject_id = ?, teacher_id = ?, room = ?, weekday = ?,
+				start_time = ?, end_time = ?, lesson_type = ?, week_cycle = ?, updated_at = ?
+			 WHERE id = ?`,
+			[
+				updated.subjectId,
+				updated.teacherId,
+				updated.room,
+				updated.weekday,
+				updated.startTime,
+				updated.endTime,
+				updated.lessonType,
+				updated.weekCycle,
+				updated.updatedAt,
+				id,
+			],
+		)
+
+		return updated
+	}
+
+	async delete(id: string): Promise<void> {
+		await this.db.runAsync('DELETE FROM schedule_entries WHERE id = ?', [id])
+	}
+
 	async create(input: CreateScheduleEntryInput): Promise<ScheduleEntry> {
 		const startTime = validateClockTime(input.startTime, 'startTime')
 		const endTime = validateClockTime(input.endTime, 'endTime')

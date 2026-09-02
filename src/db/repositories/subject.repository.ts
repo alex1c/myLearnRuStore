@@ -40,6 +40,7 @@ export interface CreateSubjectInput {
 	name: string
 	shortName?: string | null
 	color?: string | null
+	roomDefault?: string | null
 	teacherId?: string | null
 	sortOrder?: number
 }
@@ -66,7 +67,7 @@ export class SubjectRepository {
 			name,
 			shortName: input.shortName ?? null,
 			color: input.color ?? null,
-			roomDefault: null,
+			roomDefault: input.roomDefault ?? null,
 			teacherId: input.teacherId ?? null,
 			targetGrade: null,
 			sortOrder: input.sortOrder ?? 0,
@@ -97,5 +98,13 @@ export class SubjectRepository {
 		)
 
 		return subject
+	}
+
+	async getById(id: string): Promise<Subject | null> {
+		const row = await this.db.getFirstAsync<SubjectRow>(
+			'SELECT * FROM subjects WHERE id = ?',
+			[id],
+		)
+		return row ? mapRow(row) : null
 	}
 }

@@ -52,6 +52,14 @@ export class StudyPeriodRepository {
 		return row ? mapRow(row) : null
 	}
 
+	async getById(id: string): Promise<StudyPeriod | null> {
+		const row = await this.db.getFirstAsync<StudyPeriodRow>(
+			'SELECT * FROM study_periods WHERE id = ?',
+			[id],
+		)
+		return row ? mapRow(row) : null
+	}
+
 	async create(input: CreateStudyPeriodInput): Promise<StudyPeriod> {
 		const startDate = validateLocalDate(input.startDate, 'startDate')
 		const endDate = validateLocalDate(input.endDate, 'endDate')
@@ -95,5 +103,37 @@ export class StudyPeriodRepository {
 		})
 
 		return period
+	}
+
+	async update(id: string, input: Partial<CreateStudyPeriodInput>): Promise<StudyPeriod> {
+		const existing = await this.getById(id)
+		if (!existing) {
+			throw new Error('Study period not found')
+		}
+
+		const startDate = input.startDate
+			? validateLocalDate(input.startDate, 'startDate')
+			: existing.startDate
+		const endDate = input.endDate
+			? validateLocalDate(input.endDate, 'endDate')
+			: existing.endDate
+		validateStudyPeriodRange(startDate, endDate)
+
+		const updated: StudyPeriod = {
+			...existing,
+			name: input.name?.trim() ?? existing.name,
+			type: input.type ?? existing.type,
+			startDate,
+			endDate,
+			updatedAt: nowTimestamp(),
+		}
+
+		await this.db.runAsync(
+			`UPDATE study_periods SET name = ?, type = ?, start_date = ?, end_date = ?, updated_at = ?
+			 WHERE id = ?`,
+			[updated.name, updated.type, updated.startDate, updated.endDate, updated.updatedAt, id],
+		)
+
+		return updated
 	}
 }

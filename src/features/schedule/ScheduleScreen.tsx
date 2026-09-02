@@ -1,14 +1,172 @@
-import { ScreenContainer } from '@/src/components/ScreenContainer'
+import * as React from 'react'
+import {
+	ActionSheetIOS,
+	Alert,
+	Platform,
+	Pressable,
+	ScrollView,
+	StyleSheet,
+	Text,
+} from 'react-native'
+import { useRouter } from 'expo-router'
+import { DaySelector } from '@/src/components/DaySelector'
 import { EmptyState } from '@/src/components/EmptyState'
+import { LessonCard } from '@/src/components/LessonCard'
+import { ScreenContainer } from '@/src/components/ScreenContainer'
+import { WeekNavigator } from '@/src/components/WeekNavigator'
+import { useAppData } from '@/src/context/AppDataContext'
+import { getCycleIndexForDate, getScheduleForDate } from '@/src/services/occurrence.service'
+import { addDays, daysBetween, getTodayLocalDate, startOfWeek } from '@/src/utils/dates'
 
-/** Schedule tab foundation placeholder for Phase 2. */
+/** Full weekly schedule screen with day switching and cycle support. */
 export function ScheduleScreen() {
+	const router = useRouter()
+	const { scheduleContext, settings, refreshKey } = useAppData()
+	const today = getTodayLocalDate()
+	const [weekStart, setWeekStart] = React.useState(startOfWeek(today, 1))
+	const [selectedDate, setSelectedDate] = React.useState(today)
+
+	function shiftWeek(delta: number) {
+		const nextWeekStart = addDays(weekStart, delta * 7)
+		const offset = daysBetween(weekStart, selectedDate)
+		setWeekStart(nextWeekStart)
+		setSelectedDate(addDays(nextWeekStart, Math.min(Math.max(offset, 0), 6)))
+	}
+
+	const lessons = React.useMemo(() => {
+		if (!scheduleContext) {
+			return []
+		}
+
+		return getScheduleForDate(selectedDate, scheduleContext)
+	}, [scheduleContext, selectedDate, refreshKey]) // refreshKey forces reload after mutations
+
+	const cycleIndex = scheduleContext
+		? getCycleIndexForDate(selectedDate, scheduleContext)
+		: 0
+
+	function showLessonActions(entryId: string) {
+		const options = ['Редактировать', 'Дублировать', 'Изменить только этот день', 'Отмена']
+		const handlers = [
+			() => router.push(`/lesson-form?id=${entryId}`),
+			() => router.push(`/lesson-form?id=${entryId}&duplicate=1`),
+			() => router.push(`/lesson-exception?entryId=${entryId}&date=${selectedDate}`),
+		]
+
+		if (Platform.OS === 'ios') {
+			ActionSheetIOS.showActionSheetWithOptions(
+				{ options, cancelButtonIndex: 3 },
+				(index) => {
+					if (index !== undefined && index < 3) {
+						handlers[index]()
+					}
+				},
+			)
+			return
+		}
+
+		Alert.alert('Занятие', undefined, [
+			{ text: 'Редактировать', onPress: handlers[0] },
+			{ text: 'Дублировать', onPress: handlers[1] },
+			{ text: 'Изменить только этот день', onPress: handlers[2] },
+			{ text: 'Отмена', style: 'cancel' },
+		])
+	}
+
+	if (!scheduleContext) {
+		return (
+			<ScreenContainer title="Расписание">
+				<EmptyState
+					title="Добавьте расписание"
+					description="Сначала завершите настройку приложения."
+					actionLabel="Настроить"
+					onActionPress={() => router.push('/onboarding')}
+				/>
+			</ScreenContainer>
+		)
+	}
+
 	return (
 		<ScreenContainer title="Расписание">
-			<EmptyState
-				title="Расписание пока пустое"
-				description="Здесь появится недельное расписание с поддержкой числителя и знаменателя."
+			<WeekNavigator
+				weekStart={weekStart}
+				cycleLength={settings?.cycleLength ?? 1}
+				cycleIndex={cycleIndex}
+				onPrevious={() => shiftWeek(-1)}
+				onNext={() => shiftWeek(1)}
+				onToday={() => {
+					const currentWeek = startOfWeek(today, 1)
+					setWeekStart(currentWeek)
+					setSelectedDate(today)
+				}}
 			/>
+
+			<DaySelector
+				weekStart={weekStart}
+				selectedDate={selectedDate}
+				onSelectDate={setSelectedDate}
+			/>
+
+			<ScrollView
+				showsVerticalScrollIndicator={false}
+				contentContainerStyle={styles.list}
+			>
+				{lessons.length === 0 ? (
+					<EmptyState
+						title="Занятий нет"
+						description="Можно добавить занятие или выбрать другой день."
+						actionLabel="Добавить занятие"
+						onActionPress={() =>
+							router.push(`/lesson-form?date=${selectedDate}&weekday=${selectedDate}`)
+						}
+					/>
+				) : (
+					lessons.map((lesson) => (
+						<LessonCard
+							key={lesson.id}
+							occurrence={lesson}
+							onPress={() => {
+								if (lesson.scheduleEntryId) {
+									showLessonActions(lesson.scheduleEntryId)
+								}
+							}}
+						/>
+					))
+				)}
+			</ScrollView>
+
+			<Pressable
+				style={styles.fab}
+				onPress={() => router.push(`/lesson-form?date=${selectedDate}`)}
+				accessibilityRole="button"
+				accessibilityLabel="Добавить занятие"
+			>
+				<Text style={styles.fabText}>+</Text>
+			</Pressable>
 		</ScreenContainer>
 	)
 }
+
+const styles = StyleSheet.create({
+	list: {
+		paddingBottom: 96,
+		paddingTop: 8,
+	},
+	fab: {
+		position: 'absolute',
+		right: 20,
+		bottom: 24,
+		width: 56,
+		height: 56,
+		borderRadius: 28,
+		backgroundColor: '#2563EB',
+		alignItems: 'center',
+		justifyContent: 'center',
+		elevation: 4,
+	},
+	fabText: {
+		color: '#FFFFFF',
+		fontSize: 28,
+		lineHeight: 30,
+	},
+})

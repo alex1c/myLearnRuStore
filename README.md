@@ -36,7 +36,8 @@ src/
   db/                # SQLite connection, migrations, repositories
   features/          # Screen-level feature modules
   hooks/             # React hooks
-  services/          # App services for UI consumption
+  context/           # AppDataContext with refresh
+  services/          # occurrence, today, schedule-data services
   types/             # Domain types
   utils/             # Date/time/week-cycle/validation utilities
 ```
@@ -69,25 +70,54 @@ Two-week schedules use `cycle_anchor_date` in `app_settings` plus abstract `CYCL
 
 ## Current phase
 
-**Phase 1 — Foundation + Data Model**
+**Phase 2 — Schedule + Today**
 
 Implemented:
 
-- Project bootstrap and Android package config
-- SQLite schema and repositories
-- Date/time/week-cycle utilities with tests
-- 5-tab navigation shell
-- Today screen foundation (date, placeholders, assignments preview hook)
+- Onboarding (user mode, study period, week type, anchor setup)
+- Weekly schedule UI with day switching and cycle badge
+- Lesson create/edit/delete/duplicate
+- Schedule exceptions (cancel, override time/teacher/room for one day)
+- One-off ADDED lessons on holidays
+- Occurrence service (`getScheduleForDate`)
+- Today dashboard (next lesson, ongoing, today's list, cycle badge)
+- Teachers/subjects reference lists in «Ещё»
+- `AppDataContext` refresh after mutations
 
 Not implemented yet (later phases):
 
-- Full schedule UI
-- Assignment create/edit flows
+- Full assignments UI
 - Grades analytics
 - Pomodoro
 - Share / backup / ads / analytics
 
-## Development seed
+### Occurrence service
+
+`src/services/occurrence.service.ts` resolves runtime lessons from:
+
+1. weekday + week cycle parity
+2. `schedule_exceptions` (cancel, override, reschedule, one-off ADDED)
+3. `holidays` (suppress regular lessons; ADDED still shown)
+
+Occurrence identity: `scheduleEntryId:occurrenceDate` or `added:exceptionId`.
+
+### Cycle UI mapping
+
+| Domain | UI (Russian) |
+|--------|----------------|
+| `CYCLE_0` | Числитель |
+| `CYCLE_1` | Знаменатель |
+| `EVERY_WEEK` | Каждую неделю |
+
+Anchor is computed from user's «current week» selection during onboarding.
+
+## Exception rules (Phase 2)
+
+- Regular `schedule_entries` are never mutated for one-day changes
+- `CANCELLED` hides an occurrence on a specific date
+- `TIME_CHANGE` with room/teacher fields overrides that occurrence
+- `ADDED` creates a one-off lesson (shown even during holidays)
+- Holidays suppress regular lessons only
 
 `src/db/seed.ts` contains a **development-only** helper. It is not called during production bootstrap.
 

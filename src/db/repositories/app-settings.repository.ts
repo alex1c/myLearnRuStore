@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from '@/src/db/types'
-import type { AppSettings } from '@/src/types/domain'
+import type { AppSettings, UserMode } from '@/src/types/domain'
 import { createId, nowTimestamp } from '@/src/utils/id'
 import { validateCycleSettings } from '@/src/utils/validation'
 
@@ -39,6 +39,30 @@ export class AppSettingsRepository {
 			'SELECT * FROM app_settings LIMIT 1',
 		)
 		return row ? mapRow(row) : null
+	}
+
+	async updateUserMode(userMode: UserMode): Promise<void> {
+		const current = await this.get()
+		if (!current) {
+			throw new Error('App settings not initialized')
+		}
+
+		await this.db.runAsync(
+			'UPDATE app_settings SET user_mode = ?, updated_at = ? WHERE id = ?',
+			[userMode, nowTimestamp(), current.id],
+		)
+	}
+
+	async setActiveStudyPeriod(studyPeriodId: string): Promise<void> {
+		const current = await this.get()
+		if (!current) {
+			throw new Error('App settings not initialized')
+		}
+
+		await this.db.runAsync(
+			'UPDATE app_settings SET active_study_period_id = ?, updated_at = ? WHERE id = ?',
+			[studyPeriodId, nowTimestamp(), current.id],
+		)
 	}
 
 	async updateCycleSettings(input: {
