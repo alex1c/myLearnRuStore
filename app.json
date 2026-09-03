@@ -41,7 +41,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "./plugins/with-production-signing",
+      "./plugins/with-production-signing.js",
       "expo-router",
       "expo-sqlite",
       [
