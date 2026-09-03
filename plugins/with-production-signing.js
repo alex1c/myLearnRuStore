@@ -50,20 +50,10 @@ def getExternalSecret(String name) {
 			next = next.replace(marker, `${marker}\n${helper}`)
 		}
 
-		if (
-			next.includes('signingConfig signingConfigs.debug') &&
-			!next.includes('Missing external production signing secrets')
-		) {
+		if (!next.includes('Missing external production signing secrets')) {
 			next = next.replace(
-				`    signingConfigs {
-        debug {
-            storeFile file('debug.keystore')
-            storePassword 'android'
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-        }
-    }`,
-				`    signingConfigs {
+				/signingConfigs\s*\{\s*debug\s*\{\s*storeFile file\('debug\.keystore'\)\s*storePassword 'android'\s*keyAlias 'androiddebugkey'\s*keyPassword 'android'\s*\}\s*\}/m,
+				`signingConfigs {
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
@@ -87,11 +77,8 @@ def getExternalSecret(String name) {
 			)
 
 			next = next.replace(
-				`        release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug`,
-				`        release {
+				/release\s*\{\s*\/\/ Caution! In production, you need to generate your own keystore file\.\s*\/\/ see https:\/\/reactnative\.dev\/docs\/signed-apk-android\.\s*signingConfig signingConfigs\.debug/m,
+				`release {
             if (
                 getExternalSecret('MYLEARN_STORE_FILE') != null &&
                 getExternalSecret('MYLEARN_STORE_PASSWORD') != null &&
