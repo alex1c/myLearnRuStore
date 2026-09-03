@@ -45,19 +45,21 @@ function loadYandexModule(): YandexAdsModule | null {
  * Hidden until size is ready and the ad loads; never crashes the host screen.
  */
 export function AdBanner({ adUnitId, style }: AdBannerProps) {
+	// Resolve native module once; render reads BannerView from this memoized value.
+	const ads = React.useMemo(() => loadYandexModule(), [])
+	const BannerView = ads?.BannerView
+	const canLoad = Boolean(ads?.BannerAdSize && BannerView)
+
 	const [adSize, setAdSize] = React.useState<BannerAdSizeLike | null>(null)
 	const [loaded, setLoaded] = React.useState(false)
-	const [failed, setFailed] = React.useState(false)
-	const moduleRef = React.useRef<YandexAdsModule | null>(loadYandexModule())
+	const [loadFailed, setLoadFailed] = React.useState(false)
 
 	React.useEffect(() => {
-		let cancelled = false
-		const ads = moduleRef.current
-		if (!ads?.BannerAdSize) {
-			setFailed(true)
+		if (!canLoad || !ads?.BannerAdSize) {
 			return
 		}
 
+		let cancelled = false
 		void (async () => {
 			try {
 				const width = Math.floor(Dimensions.get('window').width)
@@ -67,7 +69,7 @@ export function AdBanner({ adUnitId, style }: AdBannerProps) {
 				}
 			} catch {
 				if (!cancelled) {
-					setFailed(true)
+					setLoadFailed(true)
 				}
 			}
 		})()
@@ -75,10 +77,9 @@ export function AdBanner({ adUnitId, style }: AdBannerProps) {
 		return () => {
 			cancelled = true
 		}
-	}, [])
+	}, [ads, canLoad])
 
-	const BannerView = moduleRef.current?.BannerView
-	if (failed || !BannerView || !adSize) {
+	if (!canLoad || loadFailed || !BannerView || !adSize) {
 		return null
 	}
 
@@ -90,7 +91,7 @@ export function AdBanner({ adUnitId, style }: AdBannerProps) {
 				onAdLoaded={() => setLoaded(true)}
 				onAdFailedToLoad={() => {
 					setLoaded(false)
-					setFailed(true)
+					setLoadFailed(true)
 				}}
 			/>
 		</View>

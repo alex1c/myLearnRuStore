@@ -58,3 +58,6 @@ coverage/
 
 # Claude / local tooling
 .claude/
+
+# Local release / screenshot artifacts
+release-artifacts/

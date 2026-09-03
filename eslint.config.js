@@ -11,6 +11,7 @@ module.exports = defineConfig([
 		'.expo/',
 		'android/',
 		'ios/',
+		'release-artifacts/',
 		'app/+not-found.tsx',
 		'components/EditScreenInfo.tsx',
 		'components/useClientOnlyValue.web.ts',

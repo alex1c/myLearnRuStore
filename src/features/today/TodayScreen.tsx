@@ -118,7 +118,8 @@ export function TodayScreen() {
 					/>
 				</SectionCard>
 
-				<SectionCard title="Сегодня">
+				{/* Avoid repeating the page title «Сегодня» as the schedule section heading. */}
+				<SectionCard title="Занятия">
 					{todayLessons.length === 0 ? (
 						<EmptyState title="Сегодня занятий нет" />
 					) : (
