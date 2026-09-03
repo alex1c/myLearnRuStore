@@ -38,6 +38,7 @@ import { loadFocusStats } from '@/src/services/focus-session.service'
 import { formatShareGradeProgress } from '@/src/services/share/share-formatters.service'
 import { shareText } from '@/src/services/share/share.service'
 import { formatDurationSeconds } from '@/src/utils/duration'
+import { pluralizeRu } from '@/src/utils/pluralize-ru'
 
 /** Subject performance details with forecast, target, history, attendance. */
 export default function SubjectPerformanceScreen() {
@@ -336,13 +337,24 @@ export default function SubjectPerformanceScreen() {
 							<Text style={styles.warning}>
 								Сейчас ниже цели {subject.attendanceTarget}%.
 								{attendanceInsights.presentsNeeded
-									? ` Нужно посетить ещё ${attendanceInsights.presentsNeeded} занятий подряд.`
+									? ` Нужно посетить ещё ${attendanceInsights.presentsNeeded} ${pluralizeRu(
+											attendanceInsights.presentsNeeded,
+											'занятие',
+											'занятия',
+											'занятий',
+										)} подряд.`
 									: ''}
 							</Text>
 						) : attendanceInsights && subject.attendanceTarget !== null ? (
 							<Text style={styles.meta}>
-								Можно пропустить ещё {attendanceInsights.absencesAllowed} занятий, чтобы
-								остаться выше {subject.attendanceTarget}%.
+								Можно пропустить ещё {attendanceInsights.absencesAllowed}{' '}
+								{pluralizeRu(
+									attendanceInsights.absencesAllowed,
+									'занятие',
+									'занятия',
+									'занятий',
+								)}
+								, чтобы остаться выше {subject.attendanceTarget}%.
 							</Text>
 						) : null}
 						<Pressable
