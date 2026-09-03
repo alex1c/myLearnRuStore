@@ -41,7 +41,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "./plugins/with-production-signing.js",
       "expo-router",
       "expo-sqlite",
       [
@@ -67,7 +66,8 @@
           "microphonePermission": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/with-production-signing.js"
     ],
     "experiments": {
       "typedRoutes": true
