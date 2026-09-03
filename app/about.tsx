@@ -24,8 +24,7 @@ export default function AboutScreen() {
 				</Pressable>
 
 				<Text style={styles.note}>
-					Support email: USER ACTION REQUIRED — будет добавлен перед публикацией в
-					RuStore.
+					Support email: rustore-alex1c@yandex.ru
 				</Text>
 			</ScrollView>
 		</ScreenContainer>
