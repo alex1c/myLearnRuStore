@@ -1,40 +1,97 @@
 import * as React from 'react'
-import { View, type ViewStyle } from 'react-native'
+import { Dimensions, View, type ViewStyle } from 'react-native'
 
 interface AdBannerProps {
 	adUnitId: string
 	style?: ViewStyle
 }
 
-/** Yandex banner slot — hidden when SDK unavailable or load fails. */
-export function AdBanner({ adUnitId, style }: AdBannerProps) {
-	const [loaded, setLoaded] = React.useState(false)
+type BannerAdSizeLike = {
+	width: number
+	height: number
+}
 
-	const BannerView = React.useMemo(() => {
-		if (process.env.NODE_ENV === 'test') {
-			return null
+type BannerViewComponent = React.ComponentType<{
+	size: BannerAdSizeLike
+	adRequest: { adUnitId: string }
+	onAdLoaded?: () => void
+	onAdFailedToLoad?: () => void
+	style?: ViewStyle
+}>
+
+type YandexAdsModule = {
+	BannerView?: BannerViewComponent
+	BannerAdSize?: {
+		stickySize: (width: number) => Promise<BannerAdSizeLike>
+	}
+}
+
+function loadYandexModule(): YandexAdsModule | null {
+	if (process.env.NODE_ENV === 'test') {
+		return null
+	}
+
+	try {
+		// Native module — unavailable in Jest / Expo Go.
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		return require('yandex-mobile-ads') as YandexAdsModule
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Yandex sticky banner slot.
+ * Hidden until size is ready and the ad loads; never crashes the host screen.
+ */
+export function AdBanner({ adUnitId, style }: AdBannerProps) {
+	const [adSize, setAdSize] = React.useState<BannerAdSizeLike | null>(null)
+	const [loaded, setLoaded] = React.useState(false)
+	const [failed, setFailed] = React.useState(false)
+	const moduleRef = React.useRef<YandexAdsModule | null>(loadYandexModule())
+
+	React.useEffect(() => {
+		let cancelled = false
+		const ads = moduleRef.current
+		if (!ads?.BannerAdSize) {
+			setFailed(true)
+			return
 		}
 
-		try {
-			// eslint-disable-next-line @typescript-eslint/no-require-imports
-			const module = require('yandex-mobile-ads')
-			return module.BannerView ?? null
-		} catch {
-			return null
+		void (async () => {
+			try {
+				const width = Math.floor(Dimensions.get('window').width)
+				const size = await ads.BannerAdSize!.stickySize(width)
+				if (!cancelled) {
+					setAdSize(size)
+				}
+			} catch {
+				if (!cancelled) {
+					setFailed(true)
+				}
+			}
+		})()
+
+		return () => {
+			cancelled = true
 		}
 	}, [])
 
-	if (!BannerView) {
+	const BannerView = moduleRef.current?.BannerView
+	if (failed || !BannerView || !adSize) {
 		return null
 	}
 
 	return (
 		<View style={[style, loaded ? undefined : { height: 0, overflow: 'hidden' }]}>
 			<BannerView
-				adUnitId={adUnitId}
-				size="adaptive"
+				size={adSize}
+				adRequest={{ adUnitId }}
 				onAdLoaded={() => setLoaded(true)}
-				onAdFailedToLoad={() => setLoaded(false)}
+				onAdFailedToLoad={() => {
+					setLoaded(false)
+					setFailed(true)
+				}}
 			/>
 		</View>
 	)
