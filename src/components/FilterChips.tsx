@@ -42,11 +42,13 @@ export function FilterChips({ selected, onSelect }: FilterChipsProps) {
 
 const styles = StyleSheet.create({
 	row: {
-		gap: 8,
+		gap: 6,
 		paddingBottom: 12,
+		// Keep trailing peek intentional so «Просрочено» is not mid-cut.
+		paddingRight: 28,
 	},
 	chip: {
-		paddingHorizontal: 14,
+		paddingHorizontal: 12,
 		paddingVertical: 8,
 		borderRadius: 20,
 		backgroundColor: '#F1F5F9',
@@ -58,7 +60,7 @@ const styles = StyleSheet.create({
 		borderColor: '#2563EB',
 	},
 	chipText: {
-		fontSize: 14,
+		fontSize: 13,
 		color: '#475569',
 		fontWeight: '500',
 	},

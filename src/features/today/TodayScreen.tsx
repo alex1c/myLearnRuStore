@@ -48,6 +48,7 @@ export function TodayScreen() {
 		}
 
 		return getTodayLessonState(scheduleContext, today)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [scheduleContext, today, refreshKey]) // refreshKey forces reload after mutations
 
 	const todayLessons = React.useMemo(() => {
@@ -56,6 +57,7 @@ export function TodayScreen() {
 		}
 
 		return getScheduleForDate(today, scheduleContext)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [scheduleContext, today, refreshKey]) // refreshKey forces reload after mutations
 
 	const cycleBadge =

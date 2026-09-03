@@ -51,6 +51,7 @@ export function ScheduleScreen() {
 		}
 
 		return getScheduleForDate(selectedDate, scheduleContext)
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [scheduleContext, selectedDate, refreshKey]) // refreshKey forces reload after mutations
 
 	const cycleIndex = scheduleContext
