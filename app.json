@@ -66,8 +66,7 @@
           "microphonePermission": false
         }
       ],
-      "expo-sharing",
-      "./plugins/with-production-signing.js"
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

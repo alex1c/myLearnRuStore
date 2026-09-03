@@ -1,28 +1,33 @@
-const { withAppBuildGradle } = require('expo/config-plugins')
+const fs = require('node:fs')
+const path = require('node:path')
 
 /**
- * Inject production signing logic into generated android/app/build.gradle.
+ * Apply production signing logic to generated android/app/build.gradle.
  *
- * Why this exists:
- * - `android/` is generated and ignored in this repository.
- * - We still need a reproducible release signing setup for `expo prebuild --clean`.
- * - Secrets must stay outside git-tracked files.
- *
- * External values expected at build time (Gradle property or environment variable):
- * - MYLEARN_STORE_FILE
- * - MYLEARN_STORE_PASSWORD
- * - MYLEARN_KEY_ALIAS
- * - MYLEARN_KEY_PASSWORD
+ * This script is intentionally deterministic and idempotent:
+ * - safe to run multiple times;
+ * - never writes secret values;
+ * - only injects references to external properties/env vars.
  */
-module.exports = function withProductionSigning(config) {
-	return withAppBuildGradle(config, (configWithGradle) => {
-		if (configWithGradle.modResults.language !== 'groovy') {
-			return configWithGradle
-		}
+function applyProductionSigning() {
+	const buildGradlePath = path.join(
+		process.cwd(),
+		'android',
+		'app',
+		'build.gradle',
+	)
 
-		const contents = configWithGradle.modResults.contents
-		const marker = "def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'"
-		const helper = `
+	if (!fs.existsSync(buildGradlePath)) {
+		throw new Error(`Missing file: ${buildGradlePath}`)
+	}
+
+	let gradle = fs.readFileSync(buildGradlePath, 'utf8')
+
+	if (!gradle.includes('def getExternalSecret(String name)')) {
+		gradle = gradle.replace(
+			"def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'",
+			`def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+
 /**
  * Resolve sensitive signing values from external sources only.
  * Priority:
@@ -41,19 +46,13 @@ def getExternalSecret(String name) {
     }
 
     return null
-}
-`
+}`,
+		)
+	}
 
-		let next = contents
-
-		if (!next.includes('def getExternalSecret(String name)')) {
-			next = next.replace(marker, `${marker}\n${helper}`)
-		}
-
-		if (!next.includes('Missing external production signing secrets')) {
-			next = next.replace(
-				/signingConfigs\s*\{\s*debug\s*\{\s*storeFile file\('debug\.keystore'\)\s*storePassword 'android'\s*keyAlias 'androiddebugkey'\s*keyPassword 'android'\s*\}\s*\}/m,
-				`signingConfigs {
+	gradle = gradle.replace(
+		/signingConfigs\s*\{\s*debug\s*\{\s*storeFile file\('debug\.keystore'\)\s*storePassword 'android'\s*keyAlias 'androiddebugkey'\s*keyPassword 'android'\s*\}\s*\}/m,
+		`signingConfigs {
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
@@ -74,11 +73,11 @@ def getExternalSecret(String name) {
             }
         }
     }`,
-			)
+	)
 
-			next = next.replace(
-				/release\s*\{\s*\/\/ Caution! In production, you need to generate your own keystore file\.\s*\/\/ see https:\/\/reactnative\.dev\/docs\/signed-apk-android\.\s*signingConfig signingConfigs\.debug/m,
-				`release {
+	gradle = gradle.replace(
+		/release\s*\{\s*\/\/ Caution! In production, you need to generate your own keystore file\.\s*\/\/ see https:\/\/reactnative\.dev\/docs\/signed-apk-android\.\s*signingConfig signingConfigs\.debug/m,
+		`release {
             if (
                 getExternalSecret('MYLEARN_STORE_FILE') != null &&
                 getExternalSecret('MYLEARN_STORE_PASSWORD') != null &&
@@ -92,10 +91,9 @@ def getExternalSecret(String name) {
                     'Set MYLEARN_STORE_FILE, MYLEARN_STORE_PASSWORD, MYLEARN_KEY_ALIAS, MYLEARN_KEY_PASSWORD.',
                 )
             }`,
-			)
-		}
+	)
 
-		configWithGradle.modResults.contents = next
-		return configWithGradle
-	})
+	fs.writeFileSync(buildGradlePath, gradle, 'utf8')
 }
+
+applyProductionSigning()

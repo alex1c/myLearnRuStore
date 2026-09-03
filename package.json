@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "release:apply-signing": "node scripts/apply-production-signing.cjs",
     "lint": "eslint .",
     "test": "jest",
     "typecheck": "tsc --noEmit"
